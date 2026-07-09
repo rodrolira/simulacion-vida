@@ -1,0 +1,9 @@
+# Dependencias del backend (Python 3.11+)
+# Instalar con:  python -m pip install -r requirements.txt
+#
+# Nota: uvicorn[standard] incluye websockets, wsproto, httptools y watchfiles,
+# que son necesarios para que el endpoint WebSocket (/ws) funcione.
+
+fastapi==0.138.2
+uvicorn[standard]==0.49.0
+websockets==16.0

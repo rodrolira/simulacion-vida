@@ -1,0 +1,19 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Node
+client/node_modules/
+client/dist/
+
+# Datos locales
+saves/
+logs/
+*.log
+
+# Herramientas
+.vscode/
+.qodo/
+graphify-out/
+.claude/settings.json

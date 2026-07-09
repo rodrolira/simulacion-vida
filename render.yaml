@@ -1,0 +1,10 @@
+# Blueprint de Render: despliega el servicio con "New +" -> "Blueprint"
+# apuntando al repo. Plan free: el servicio duerme tras 15 min de inactividad
+# y despierta con la siguiente visita (el mundo se reinicia: estado en memoria).
+services:
+  - type: web
+    name: simulacion-vida
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/stats
+    autoDeploy: true
