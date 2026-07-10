@@ -204,6 +204,33 @@ El servidor solo sirve la interfaz web si existe `client/dist/`. **Compila el cl
 
 ---
 
+## ☁️ Despliegue en la web (Render)
+
+El proyecto incluye un [Dockerfile](Dockerfile) multi-etapa (compila el cliente y arranca
+el servidor) y un blueprint [render.yaml](render.yaml). Vercel **no** sirve para este
+backend: la simulación necesita un proceso continuo y WebSockets persistentes, cosas que
+el modelo serverless no ofrece.
+
+Pasos (una sola vez):
+1. Entra en [render.com](https://render.com) y regístrate con tu cuenta de GitHub.
+2. **New + → Blueprint** → conecta el repo `rodrolira/simulacion-vida` → **Apply**.
+3. Espera el build (~5 min). Tu simulación quedará en `https://simulacion-vida.onrender.com`.
+
+Cada `git push` a `main` redespliega automáticamente.
+
+Limitaciones del plan gratuito:
+- El servicio **duerme tras ~15 min sin visitas** y tarda ~1 min en despertar.
+- El estado vive en memoria y el disco es efímero: al dormir o redesplegar,
+  **el mundo se reinicia** (los guardados de `saves/` no persisten).
+
+Probar la imagen Docker en local:
+```powershell
+docker build -t simulacion-vida .
+docker run --rm -p 8000:8000 simulacion-vida   # → http://localhost:8000
+```
+
+---
+
 ## 🧪 Tests
 
 Tests unitarios simples (sin necesidad de servidor) en `tests/`:
