@@ -203,6 +203,41 @@ export class GameScene {
       this.app.screen.width / 2 - this.camera.x * TILE * this.camera.zoom,
       this.app.screen.height / 2 - this.camera.y * TILE * this.camera.zoom
     )
+    this._notifyCamera()
+  }
+
+  /**
+   * Registra un callback que recibe la cámara en vivo (posición, zoom y viewport
+   * en casillas). Lo usa el minimapa para dibujar el recuadro de vista real.
+   */
+  setCameraListener (fn) {
+    this._camListener = fn
+    this._notifyCamera()
+  }
+
+  /** Centra la cámara en una casilla del mundo (p. ej. clic en el minimapa). */
+  centerOn (x, y) {
+    this.camera.x = x
+    this.camera.y = y
+    this.updateTransform()
+  }
+
+  /** Notifica la cámara al listener, coalescido a un aviso por frame. @private */
+  _notifyCamera () {
+    if (!this._camListener || this._camNotifyPending) return
+    this._camNotifyPending = true
+    requestAnimationFrame(() => {
+      this._camNotifyPending = false
+      if (!this._camListener || !this.app?.screen) return
+      const { x, y, zoom } = this.camera
+      this._camListener({
+        x,
+        y,
+        zoom,
+        viewW: this.app.screen.width / (zoom * TILE),
+        viewH: this.app.screen.height / (zoom * TILE)
+      })
+    })
   }
 
   /**
@@ -607,6 +642,7 @@ export class GameScene {
     if (parent) {
       this.app.renderer.resize(parent.clientWidth, parent.clientHeight)
       this.lighting.resize(this.app.screen.width, this.app.screen.height)
+      this._notifyCamera() // el viewport visible cambió
     }
   }
 
@@ -614,6 +650,7 @@ export class GameScene {
    * Destruye la escena y libera recursos.
    */
   destroy () {
+    this._camListener = null
     // Remover event listeners
     const view = this.app.view
     view.removeEventListener('mousedown', this._onMouseDown)

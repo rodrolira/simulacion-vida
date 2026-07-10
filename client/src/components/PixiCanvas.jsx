@@ -2,7 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { GameScene } from '../pixi/GameScene';
 
-export default function PixiCanvas({ worldState, forceRender, onSelectNPC, timeStr, terrainData, weather, worldBounds }) {
+export default function PixiCanvas({ worldState, forceRender, onSelectNPC, timeStr, terrainData, weather, worldBounds, onSceneReady }) {
     const canvasRef = useRef(null);
     const sceneRef = useRef(null);
     const boundsRef = useRef(null);
@@ -10,12 +10,14 @@ export default function PixiCanvas({ worldState, forceRender, onSelectNPC, timeS
 
     useEffect(() => {
         sceneRef.current = new GameScene(canvasRef, terrainData);
+        onSceneReady?.(sceneRef.current);
 
         const handleResize = () => sceneRef.current?.resize();
         window.addEventListener('resize', handleResize);
 
         return () => {
             window.removeEventListener('resize', handleResize);
+            onSceneReady?.(null);
             sceneRef.current?.destroy();
             sceneRef.current = null;
         };
@@ -50,4 +52,5 @@ PixiCanvas.propTypes = {
     terrainData: PropTypes.object,
     weather: PropTypes.string,
     worldBounds: PropTypes.object,
+    onSceneReady: PropTypes.func,
 };

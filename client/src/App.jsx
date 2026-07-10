@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import PixiCanvas from './components/PixiCanvas';
 import InfoPanel from './components/InfoPanel';
 import HUD from './components/HUD';
@@ -19,6 +19,16 @@ export default function App() {
     const [terrainData, setTerrainData] = useState(null);
     const [weather, setWeather] = useState('clear');
     const [worldBounds, setWorldBounds] = useState(null);
+    const [scene, setScene] = useState(null);
+    const [minimapCam, setMinimapCam] = useState(null);
+
+    // Suscribirse a la cámara en vivo de la escena (posición, zoom, viewport):
+    // así el minimapa muestra el recuadro REAL y se mueve al arrastrar/zoomear.
+    useEffect(() => {
+        if (!scene) return;
+        scene.setCameraListener(setMinimapCam);
+        return () => scene.setCameraListener(null);
+    }, [scene]);
     const [globalEvents, setGlobalEvents] = useState([]);
     const fpsRef = useRef({ frames: 0, lastTime: performance.now(), fps: 0 });
     const eventsBufferRef = useRef([]);
@@ -155,6 +165,7 @@ export default function App() {
                         terrainData={terrainData}
                         weather={weather}
                         worldBounds={worldBounds}
+                        onSceneReady={setScene}
                     />
                 </ErrorBoundary>
 
@@ -191,8 +202,11 @@ export default function App() {
                 }}>
                     <Minimap
                         worldState={worldState}
-                        camera={{ x: 100, y: 80, zoom: 2 }}
+                        camera={minimapCam}
                         terrainData={terrainData}
+                        worldBounds={worldBounds}
+                        tick={forceRender}
+                        onNavigate={(x, y) => scene?.centerOn(x, y)}
                     />
                 </div>
 
