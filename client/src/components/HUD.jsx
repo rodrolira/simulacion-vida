@@ -2,10 +2,11 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { useI18n } from '../i18n';
 
-export default function HUD({ timeStr, day, npcCount, fps, speed, running, weather, onSpeedChange, onPause, onResume }) {
-    const { t, tWeather, lang, setLang } = useI18n();
+export default function HUD({ timeStr, day, npcCount, fps, speed, running, weather, onSpeedChange, onPause, onResume, era }) {
+    const { t, tWeather, tEra, lang, setLang } = useI18n();
     const speeds = [0.5, 1, 2, 5, 10];
     const wx = tWeather(weather || 'clear');
+    const e = era ? tEra(era) : null;
 
     return (
         <div className="hud-panel" style={{
@@ -30,6 +31,22 @@ export default function HUD({ timeStr, day, npcCount, fps, speed, running, weath
                 <span>👥 <span className="tnum" style={{ color: 'var(--ink-2)' }}>{npcCount}</span></span>
                 <span>⚡ <span className="tnum" style={{ color: fps < 30 ? 'var(--bad)' : 'var(--ok)' }}>{fps}</span> {t('ui.fps')}</span>
             </div>
+
+            {/* Era histórica de la civilización */}
+            {e && (
+                <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 10 }} title={e.advance}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+                        <span style={{ fontSize: 12, color: 'var(--ink)' }}>
+                            <span style={{ marginRight: 5 }}>{e.icon}</span>{e.name}
+                        </span>
+                        <span className="tnum" style={{ fontSize: 10, color: 'var(--ink-3)' }}>{e.index + 1}/{e.total}</span>
+                    </div>
+                    <div className="bar-track" style={{ height: 4 }}>
+                        <div className="bar-fill" style={{ width: `${Math.round(e.progress * 100)}%`, background: 'var(--amber)' }} />
+                    </div>
+                    <div style={{ fontSize: 9.5, color: 'var(--ink-muted)', marginTop: 4, lineHeight: 1.35 }}>{e.advance}</div>
+                </div>
+            )}
 
             {/* Controles */}
             <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 10 }}>
@@ -84,4 +101,5 @@ HUD.propTypes = {
     onSpeedChange: PropTypes.func.isRequired,
     onPause: PropTypes.func.isRequired,
     onResume: PropTypes.func.isRequired,
+    era: PropTypes.object,
 };

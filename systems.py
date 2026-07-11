@@ -1013,6 +1013,65 @@ class WeatherSystem:
 
 
 # ============================================================
+# ERA SYSTEM — progresión histórica de la civilización
+# ============================================================
+class EraSystem:
+    """La aldea avanza por eras reales, desde los primeros humanos hasta el futuro.
+
+    El 'conocimiento' se acumula con el tiempo, la población y los NPCs educados;
+    al superar el umbral de la era actual, la civilización avanza a la siguiente y
+    se anuncia el avance correspondiente. Las últimas eras son especulación de futuro.
+    """
+    ERAS = [
+        "prehistory", "antiquity", "classical", "medieval", "renaissance",
+        "industrial", "information", "ai", "space", "singularity",
+    ]
+
+    def __init__(self):
+        self.index = 0
+        self.knowledge = 0.0
+        self.progress = 0.0  # 0..1 dentro de la era actual
+        self.global_events = []
+
+    def _threshold(self, i: int) -> float:
+        # Cada era cuesta un poco más de conocimiento que la anterior.
+        return 260.0 * (i + 1)
+
+    def run(self, world: World):
+        npcs = world.entities_with_components(Identity)
+        educated = 0
+        for e in npcs:
+            ident = world.get_component(e, Identity)
+            if ident and (ident.education or 0) > 0.6:
+                educated += 1
+        # El conocimiento crece con el tiempo base, la población y la educación.
+        self.knowledge += 0.08 + 0.02 * len(npcs) + 0.06 * educated
+
+        threshold = self._threshold(self.index)
+        self.progress = min(1.0, self.knowledge / threshold)
+
+        if self.knowledge >= threshold and self.index < len(self.ERAS) - 1:
+            self.index += 1
+            self.knowledge = 0.0
+            self.progress = 0.0
+            self._add_event(world, "era_advance",
+                            f"¡La aldea alcanza una nueva era: {self.ERAS[self.index]}!",
+                            "info", meta={"era": self.ERAS[self.index]})
+
+    def get_state(self) -> dict:
+        return {
+            "era": self.ERAS[self.index],
+            "index": self.index,
+            "total": len(self.ERAS),
+            "progress": round(self.progress, 3),
+        }
+
+    def _add_event(self, world, etype, desc, severity="info", meta=None):
+        self.global_events.append(GlobalEvent(tick=world.tick, event_type=etype, description=desc,
+                                              severity=severity, meta=meta or {}))
+
+
+# ============================================================
 # FASE 10: GLOBAL EVENT LOGGER
 # ============================================================
 class GlobalEventLogger:

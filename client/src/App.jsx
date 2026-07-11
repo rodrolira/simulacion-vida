@@ -21,6 +21,7 @@ export default function App() {
     const [terrainData, setTerrainData] = useState(null);
     const [weather, setWeather] = useState('clear');
     const [worldBounds, setWorldBounds] = useState(null);
+    const [era, setEra] = useState(null);
     const [scene, setScene] = useState(null);
     const [minimapCam, setMinimapCam] = useState(null);
 
@@ -85,6 +86,7 @@ export default function App() {
         if (data.running !== undefined) setRunning(data.running);
         if (data.weather) setWeather(data.weather);
         if (data.world_bounds) setWorldBounds(data.world_bounds);
+        if (data.era) setEra(data.era);
 
         // Forzar re-render del canvas
         setForceRender(prev => prev + 1);
@@ -197,6 +199,7 @@ export default function App() {
                     onSpeedChange={handleSpeedChange}
                     onPause={handlePause}
                     onResume={handleResume}
+                    era={era}
                 />
 
                 {/* Sistema de notificaciones de eventos globales */}

@@ -14,6 +14,12 @@ export const WEATHER_ICON = {
     drought: '🌵', fog: '🌫️', snow: '❄️',
 };
 
+// Iconos de las eras históricas (independientes del idioma)
+export const ERA_ICON = {
+    prehistory: '🔥', antiquity: '🌾', classical: '🏛️', medieval: '🏰', renaissance: '📜',
+    industrial: '⚙️', information: '💻', ai: '🤖', space: '🚀', singularity: '✨',
+};
+
 const L = {
     es: {
         ui: {
@@ -72,9 +78,23 @@ const L = {
             weather_storm: '¡Tormenta! La producción de comida baja',
             weather_drought: '¡Sequía! Los cultivos sufren',
             weather_rain: 'Lluvia suave, los cultivos crecen mejor',
+            era_advance: '🌟 Nueva era: {era}. {advance}',
         },
         innovation: { improved_agriculture: 'Agricultura mejorada', advanced_medicine: 'Medicina avanzada', digital_commerce: 'Comercio digital', public_education: 'Educación pública' },
         disease: { gripe: 'gripe' },
+        eraLabel: 'Era',
+        era: {
+            prehistory: { name: 'Prehistoria', advance: 'Los primeros humanos dominan el fuego y la caza' },
+            antiquity: { name: 'Edad Antigua', advance: 'Nace la agricultura y las primeras aldeas' },
+            classical: { name: 'Época Clásica', advance: 'Surgen la escritura, la moneda y las ciudades' },
+            medieval: { name: 'Edad Media', advance: 'Gremios, castillos y rutas de comercio' },
+            renaissance: { name: 'Renacimiento', advance: 'La imprenta difunde el conocimiento' },
+            industrial: { name: 'Era Industrial', advance: 'La máquina de vapor y las fábricas' },
+            information: { name: 'Era de la Información', advance: 'Computadoras e internet conectan al mundo' },
+            ai: { name: 'Era de la IA', advance: 'La inteligencia artificial transforma la vida' },
+            space: { name: 'Era Espacial', advance: 'La humanidad coloniza las estrellas' },
+            singularity: { name: 'Singularidad', advance: 'Mente y máquina se funden' },
+        },
     },
     en: {
         ui: {
@@ -133,9 +153,23 @@ const L = {
             weather_storm: 'Storm! Food production drops',
             weather_drought: 'Drought! Crops suffer',
             weather_rain: 'Gentle rain, crops grow better',
+            era_advance: '🌟 New era: {era}. {advance}',
         },
         innovation: { improved_agriculture: 'Improved agriculture', advanced_medicine: 'Advanced medicine', digital_commerce: 'Digital commerce', public_education: 'Public education' },
         disease: { gripe: 'the flu' },
+        eraLabel: 'Era',
+        era: {
+            prehistory: { name: 'Prehistory', advance: 'The first humans master fire and hunting' },
+            antiquity: { name: 'Antiquity', advance: 'Agriculture and the first villages are born' },
+            classical: { name: 'Classical Era', advance: 'Writing, coinage and cities emerge' },
+            medieval: { name: 'Middle Ages', advance: 'Guilds, castles and trade routes' },
+            renaissance: { name: 'Renaissance', advance: 'The printing press spreads knowledge' },
+            industrial: { name: 'Industrial Era', advance: 'The steam engine and factories' },
+            information: { name: 'Information Age', advance: 'Computers and the internet connect the world' },
+            ai: { name: 'AI Era', advance: 'Artificial intelligence transforms life' },
+            space: { name: 'Space Age', advance: 'Humanity colonizes the stars' },
+            singularity: { name: 'Singularity', advance: 'Mind and machine merge' },
+        },
     },
 };
 
@@ -208,9 +242,29 @@ export function formatEvent(lang, evt) {
             return t(`event.${type}`);
         case 'weather':
             return t(`event.weather_${meta.kind}`) || evt.description;
+        case 'era_advance':
+            return t('event.era_advance', {
+                era: t(`era.${meta.era}.name`),
+                advance: t(`era.${meta.era}.advance`),
+            });
         default:
             return evt.description || type;
     }
+}
+
+/** Devuelve el estado de era listo para mostrar: icono, nombre y descripción del avance. */
+export function formatEra(lang, era) {
+    const key = era?.era || 'prehistory';
+    return {
+        key,
+        icon: ERA_ICON[key] || '🌍',
+        name: translate(lang, `era.${key}.name`),
+        advance: translate(lang, `era.${key}.advance`),
+        label: translate(lang, 'eraLabel'),
+        index: era?.index ?? 0,
+        total: era?.total ?? 10,
+        progress: era?.progress ?? 0,
+    };
 }
 
 /* ---- Contexto de React ---- */
@@ -233,6 +287,7 @@ export function I18nProvider({ children }) {
         tMemory: (entry, nameOf) => formatMemory(lang, entry, nameOf),
         tEvent: (evt) => formatEvent(lang, evt),
         tWeather: (code) => ({ icon: WEATHER_ICON[code] || '☀️', label: translate(lang, `weather.${code}`) }),
+        tEra: (era) => formatEra(lang, era),
     }), [lang, setLang]);
 
     // React.createElement en lugar de JSX: este archivo es .js y no pasa por el loader JSX.

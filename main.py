@@ -32,7 +32,7 @@ from systems import (
     UtilityAISystem, MovementSystem, WorkSystem, ActionExecutionSystem,
     RelationshipSystem, SalarySystem, MemoryDecaySystem, ScheduleSystem,
     EpidemicSystem, EconomicEventSystem, MigrationSystem,
-    InnovationSystem, WeatherSystem, GlobalEventLogger
+    InnovationSystem, WeatherSystem, EraSystem, GlobalEventLogger
 )
 from world_serializer import WorldSerializer
 from terrain_generator import TerrainGenerator
@@ -74,6 +74,7 @@ economic_sys = EconomicEventSystem()
 migration_sys = MigrationSystem()
 innovation_sys = InnovationSystem()
 weather_sys = WeatherSystem()
+era_sys = EraSystem()
 event_logger = GlobalEventLogger()
 
 # Pasar referencia del mundo al sistema de utilidad
@@ -142,6 +143,10 @@ def init_world():
     # Reiniciar contadores de nombres y límites (el mundo empieza pequeño y crece)
     _building_counter.update({"house": 4, "shop": 2, "office": 1, "farm": 1})
     world_bounds = compute_world_bounds(0)
+    # La civilización empieza en la prehistoria
+    era_sys.index = 0
+    era_sys.knowledge = 0.0
+    era_sys.progress = 0.0
 
     # Edificios iniciales AGRUPADOS en el centro: el asentamiento crece desde aquí.
     b0 = compute_world_bounds(0)
@@ -355,6 +360,7 @@ def get_changed_entities():
         "weather": weather_sys.get_weather(),
         "global_events": events_data,
         "world_bounds": world_bounds,
+        "era": era_sys.get_state(),
     }
 
 
@@ -389,7 +395,7 @@ async def broadcast_state():
 def collect_global_events():
     """Recolecta eventos globales de todos los sistemas."""
     for sys_obj in [epidemic_sys, economic_sys, migration_sys,
-                    innovation_sys, weather_sys]:
+                    innovation_sys, weather_sys, era_sys]:
         while hasattr(sys_obj, 'global_events') and sys_obj.global_events:
             event = sys_obj.global_events.pop(0)
             event_logger.add_event(event)
@@ -499,6 +505,7 @@ def run_tick():
     migration_sys.run(world)
     innovation_sys.run(world)
     weather_sys.run(world)
+    era_sys.run(world)
 
     # 14. Recolectar eventos globales
     collect_global_events()
@@ -550,6 +557,7 @@ async def websocket_endpoint(ws: WebSocket):
         "speed": simulation_speed,
         "running": simulation_running,
         "world_bounds": world_bounds,
+        "era": era_sys.get_state(),
     }
     await ws.send_text(json.dumps(full_state))
 
