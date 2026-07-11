@@ -39,6 +39,10 @@ class WorldState {
   getBuildings () {
     return this.getAll().filter(e => e.Building && e.Position)
   }
+
+  getProps () {
+    return this.getAll().filter(e => e.Prop && e.Position)
+  }
 }
 
 export const worldState = new WorldState()

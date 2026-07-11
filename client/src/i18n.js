@@ -52,7 +52,13 @@ const L = {
         relType: { acquaintance: 'conocido', friend: 'amigo', close_friend: 'amigo íntimo', enemy: 'enemigo', rival: 'rival' },
         culture: { urban: 'urbano', rural: 'rural', coastal: 'costero', migrant: 'migrante' },
         weather: { clear: 'Despejado', cloudy: 'Nublado', rain: 'Lluvia', storm: 'Tormenta', drought: 'Sequía', fog: 'Niebla', snow: 'Nieve' },
-        buildingType: { hospital: 'Hospital', school: 'Escuela', farm: 'Granja', office: 'Oficina', shop: 'Tienda', house: 'Casa' },
+        buildingType: {
+            hospital: 'Hospital', school: 'Escuela', farm: 'Granja', office: 'Oficina', shop: 'Tienda', house: 'Casa',
+            totem: 'Tótem', temple: 'Templo', market: 'Mercado', granary: 'Granero', monument: 'Monumento',
+            bathhouse: 'Termas', church: 'Iglesia', mill: 'Molino', blacksmith: 'Herrería', tavern: 'Taberna',
+            watchtower: 'Torre de vigía', library: 'Biblioteca', factory: 'Fábrica', warehouse: 'Almacén',
+            lab: 'Laboratorio', dome: 'Cúpula', greenhouse: 'Invernadero', spire: 'Rascacielos',
+        },
         eventName: { epidemic: 'Epidemia', economic_crisis: 'Crisis económica', migration: 'Migración', storm: 'Tormenta', drought: 'Sequía', miracle: 'Milagro', party: 'Fiesta' },
         memory: {
             work_heal: 'Curó a un paciente', work_produce: 'Produjo comida', work_teach: 'Educó a un estudiante',
@@ -127,7 +133,13 @@ const L = {
         relType: { acquaintance: 'acquaintance', friend: 'friend', close_friend: 'close friend', enemy: 'enemy', rival: 'rival' },
         culture: { urban: 'urban', rural: 'rural', coastal: 'coastal', migrant: 'migrant' },
         weather: { clear: 'Clear', cloudy: 'Cloudy', rain: 'Rain', storm: 'Storm', drought: 'Drought', fog: 'Fog', snow: 'Snow' },
-        buildingType: { hospital: 'Hospital', school: 'School', farm: 'Farm', office: 'Office', shop: 'Shop', house: 'House' },
+        buildingType: {
+            hospital: 'Hospital', school: 'School', farm: 'Farm', office: 'Office', shop: 'Shop', house: 'House',
+            totem: 'Totem', temple: 'Temple', market: 'Market', granary: 'Granary', monument: 'Monument',
+            bathhouse: 'Bathhouse', church: 'Church', mill: 'Mill', blacksmith: 'Blacksmith', tavern: 'Tavern',
+            watchtower: 'Watchtower', library: 'Library', factory: 'Factory', warehouse: 'Warehouse',
+            lab: 'Laboratory', dome: 'Dome', greenhouse: 'Greenhouse', spire: 'Spire',
+        },
         eventName: { epidemic: 'Epidemic', economic_crisis: 'Economic crisis', migration: 'Migration', storm: 'Storm', drought: 'Drought', miracle: 'Miracle', party: 'Party' },
         memory: {
             work_heal: 'Healed a patient', work_produce: 'Produced food', work_teach: 'Taught a student',

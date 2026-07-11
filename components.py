@@ -147,9 +147,19 @@ class Bed:
 
 @dataclass
 class Building:
-    building_type: str  # "hospital", "school", "farm", "office", "shop", "house"
+    building_type: str  # funcionales: hospital/school/farm/office/shop/house;
+    #                     emblemáticos: church/temple/market/monument/mill/blacksmith/
+    #                     tavern/watchtower/library/factory/dome/lab
     name: str = ""
     capacity: int = 10
+    era: str = "antiquity"  # estilo arquitectónico (época en que se construyó)
+
+
+@dataclass
+class Prop:
+    """Elemento decorativo (no interactivo): pozo, fuente, árbol, hoguera, estatua…"""
+    prop_type: str  # well/fountain/tree/campfire/statue/lamppost/stall/barrel/antenna/bush
+    variant: int = 0
 
 
 @dataclass

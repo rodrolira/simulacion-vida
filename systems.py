@@ -1035,7 +1035,7 @@ class EraSystem:
 
     def _threshold(self, i: int) -> float:
         # Cada era cuesta un poco más de conocimiento que la anterior.
-        return 260.0 * (i + 1)
+        return 180.0 * (i + 1)
 
     def run(self, world: World):
         npcs = world.entities_with_components(Identity)

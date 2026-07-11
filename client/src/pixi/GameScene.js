@@ -14,6 +14,25 @@ const TILE = 16
 const WORLD_W = 200
 const WORLD_H = 150
 
+// Época -> grupo de estilo arquitectónico
+const ERA_GROUP = {
+  prehistory: 'ancient', antiquity: 'ancient',
+  classical: 'classical', medieval: 'classical',
+  renaissance: 'early_modern', industrial: 'early_modern',
+  information: 'modern', ai: 'future', space: 'future', singularity: 'future'
+}
+
+// Paleta por grupo de época (paredes, tejado, puerta, cristal, acento).
+const ERA_STYLE = {
+  ancient: { wall: 0xc9a877, wall2: 0xb08e5e, roof: 0x9c7a3f, roof2: 0x7d5f2e, door: 0x6b4626, glass: 0x9ac6b0, accent: 0xcf9f5a },
+  classical: { wall: 0xd8c9a8, wall2: 0xc2b189, roof: 0xb5482f, roof2: 0x8a3320, door: 0x5a3a1e, glass: 0x9fdcf0, accent: 0xcf7a3c },
+  early_modern: { wall: 0xb5615a, wall2: 0x8f4a44, roof: 0x59606c, roof2: 0x3d4652, door: 0x4a3226, glass: 0xbfe0ea, accent: 0x9aa0a6 },
+  modern: { wall: 0xc4cad0, wall2: 0xa6aeb6, roof: 0x8a939c, roof2: 0x6f7982, door: 0x39424a, glass: 0x7fc4e8, accent: 0x5a9fd8 },
+  future: { wall: 0x6f86a6, wall2: 0x556a8c, roof: 0x8f7fd8, roof2: 0x6b5fb0, door: 0x2f3a52, glass: 0x9ff0ea, accent: 0x7fe0d8 }
+}
+
+const eraPalette = (era) => ERA_STYLE[ERA_GROUP[era] || 'classical'] || ERA_STYLE.classical
+
 /**
  * Escena principal del juego que gestiona todas las capas de renderizado,
  * la cámara y la actualización de entidades.
@@ -40,6 +59,7 @@ export class GameScene {
 
     // Capas en orden z
     this.groundLayer = new PIXI.Container()
+    this.decoLayer = new PIXI.Container() // props decorativos (bajo los edificios)
     this.buildingLayer = new PIXI.Container()
     this.linkLayer = new PIXI.Container() // líneas de interacción social (bajo los NPCs)
     this.npcLayer = new PIXI.Container()
@@ -50,6 +70,7 @@ export class GameScene {
 
     this.app.stage.addChild(
       this.groundLayer,
+      this.decoLayer,
       this.buildingLayer,
       this.linkLayer,
       this.npcLayer,
@@ -86,6 +107,7 @@ export class GameScene {
     this.npcSprites = new Map()
     this.npcLabels = new Map() // id -> PIXI.Text con el nombre
     this.buildingGraphics = new Map()
+    this.propGraphics = new Map() // id -> gráfico de prop decorativo
     this.prevNPCStates = new Map()
 
     // Cámara (en unidades de casilla; se convierte a px en updateTransform).
@@ -265,6 +287,7 @@ export class GameScene {
 
     if (buildingLabel) this._buildingLabel = buildingLabel
     this._autoCenterCamera(worldState)
+    this._updateProps(worldState)
     this._updateBuildings(worldState, onSelectNPC)
     this._updateNPCs(worldState, onSelectNPC)
     this._updateFog(worldBounds)
@@ -530,6 +553,8 @@ export class GameScene {
    */
   _createBuildingGraphic (building, labelText) {
     const type = building?.Building?.building_type || 'house'
+    const era = building?.Building?.era || 'classical'
+    const p = eraPalette(era)
     const g = new PIXI.Graphics()
 
     // Sombra al pie (da sensación de volumen)
@@ -538,23 +563,20 @@ export class GameScene {
     g.endFill()
 
     const drawers = {
-      hospital: this._drawHospital,
-      school: this._drawSchool,
-      farm: this._drawFarm,
-      office: this._drawOffice,
-      shop: this._drawShop,
-      house: this._drawHouse
+      house: this._drawHouse, shop: this._drawShop, office: this._drawOffice, farm: this._drawFarm,
+      hospital: this._drawHospital, school: this._drawSchool,
+      totem: this._drawTotem, temple: this._drawTemple, market: this._drawMarket,
+      granary: this._drawGranary, monument: this._drawMonument, bathhouse: this._drawBathhouse,
+      church: this._drawChurch, mill: this._drawMill, blacksmith: this._drawBlacksmith,
+      tavern: this._drawTavern, watchtower: this._drawWatchtower, library: this._drawLibrary,
+      factory: this._drawFactory, warehouse: this._drawWarehouse, lab: this._drawLab,
+      dome: this._drawDome, greenhouse: this._drawGreenhouse, spire: this._drawSpire
     }
-    ;(drawers[type] || this._drawHouse).call(this, g)
+    ;(drawers[type] || this._drawHouse).call(this, g, p)
 
     // Etiqueta con el nombre (localizada) bajo el edificio
     const text = new PIXI.Text((labelText || building?.Building?.name || type).substring(0, 16), {
-      fontSize: 7,
-      fill: 0xffffff,
-      stroke: 0x000000,
-      strokeThickness: 3,
-      align: 'center',
-      fontFamily: 'monospace'
+      fontSize: 7, fill: 0xffffff, stroke: 0x000000, strokeThickness: 3, align: 'center', fontFamily: 'monospace'
     })
     text.anchor.set(0.5, 0)
     text.y = 20
@@ -563,6 +585,25 @@ export class GameScene {
     g.__building = building
 
     return g
+  }
+
+  // ---- Props decorativos (capa de decoración, no interactivos) ----
+  _updateProps (worldState) {
+    const props = worldState.getProps ? worldState.getProps() : []
+    const ids = new Set(props.map(pr => pr.id))
+    props.forEach(pr => {
+      if (this.propGraphics.has(pr.id)) return
+      const g = new PIXI.Graphics()
+      g.eventMode = 'none'
+      this._drawProp(g, pr.Prop?.prop_type || 'tree', pr.Prop?.variant || 0)
+      g.x = (pr.Position?.x ?? 0) * TILE
+      g.y = (pr.Position?.y ?? 0) * TILE
+      this.decoLayer.addChild(g)
+      this.propGraphics.set(pr.id, g)
+    })
+    this.propGraphics.forEach((g, id) => {
+      if (!ids.has(id)) { g.removeFromParent(); g.destroy(); this.propGraphics.delete(id) }
+    })
   }
 
   /** Etiqueta localizada de un edificio (usa el traductor inyectado por React). */
@@ -583,75 +624,312 @@ export class GameScene {
     })
   }
 
-  /** Casa: paredes, tejado a dos aguas, puerta, ventanas y chimenea. @private */
-  _drawHouse (g) {
-    g.beginFill(0xd8b483); g.drawRect(-12, 0, 24, 16); g.endFill() // pared
-    g.beginFill(0x8a5a44); g.drawRect(6, -12, 4, 7); g.endFill() // chimenea
-    g.beginFill(0xa5432f); g.drawPolygon([-15, 0, 0, -13, 15, 0]); g.endFill() // tejado
-    g.beginFill(0x8f3524); g.drawPolygon([-15, 0, 0, -13, -13, 0]); g.endFill() // sombra tejado
-    g.beginFill(0x6b4626); g.drawRect(-3, 7, 7, 9); g.endFill() // puerta
-    g.beginFill(0xffcf5a); g.drawRect(2, 11, 1.2, 1.2); g.endFill() // pomo
-    g.beginFill(0x9fdcf0); g.drawRect(-10, 4, 5, 5); g.drawRect(6, 4, 5, 5); g.endFill() // ventanas
-    g.beginFill(0x5a4a3a) // marcos
-    g.drawRect(-7.75, 4, 0.5, 5); g.drawRect(-10, 6.25, 5, 0.5)
-    g.drawRect(8.25, 4, 0.5, 5); g.drawRect(6, 6.25, 5, 0.5)
+  /** Casa (estilo según época). @private */
+  _drawHouse (g, p) {
+    g.beginFill(p.wall); g.drawRect(-12, 0, 24, 16); g.endFill()
+    g.beginFill(p.wall2); g.drawRect(6, -12, 4, 7); g.endFill() // chimenea
+    g.beginFill(p.roof); g.drawPolygon([-15, 0, 0, -13, 15, 0]); g.endFill()
+    g.beginFill(p.roof2); g.drawPolygon([-15, 0, 0, -13, -13, 0]); g.endFill()
+    g.beginFill(p.door); g.drawRect(-3, 7, 7, 9); g.endFill()
+    g.beginFill(p.accent); g.drawRect(2, 11, 1.3, 1.3); g.endFill()
+    g.beginFill(p.glass); g.drawRect(-10, 4, 5, 5); g.drawRect(6, 4, 5, 5); g.endFill()
+  }
+
+  /** Tienda (estilo según época). @private */
+  _drawShop (g, p) {
+    g.beginFill(p.wall); g.drawRect(-13, -2, 26, 18); g.endFill()
+    g.beginFill(p.accent); g.drawRect(-11, -8, 22, 5); g.endFill() // cartel
+    for (let i = 0; i < 8; i++) { g.beginFill(i % 2 ? 0xffffff : p.roof); g.drawRect(-13 + i * 3.25, -3, 3.25, 4); g.endFill() }
+    g.beginFill(p.glass); g.drawRect(-11, 3, 13, 9); g.endFill()
+    g.beginFill(p.door); g.drawRect(4, 4, 8, 12); g.endFill()
+  }
+
+  /** Oficina (estilo según época). @private */
+  _drawOffice (g, p) {
+    g.beginFill(p.wall2); g.drawRect(-11, -18, 22, 34); g.endFill()
+    g.beginFill(p.roof2); g.drawRect(-11, -20, 22, 3); g.endFill()
+    g.beginFill(p.glass)
+    for (let ry = -14; ry <= 8; ry += 6) { for (let rx = -8; rx <= 4; rx += 6) g.drawRect(rx, ry, 4, 4) }
     g.endFill()
+    g.beginFill(p.door); g.drawRect(-4, 10, 8, 6); g.endFill()
   }
 
-  /** Hospital: cuerpo blanco, banda roja, cruz y entrada acristalada. @private */
-  _drawHospital (g) {
-    g.beginFill(0xeef2f6); g.drawRect(-13, -4, 26, 20); g.endFill() // cuerpo
-    g.beginFill(0xd23b3b); g.drawRect(-13, -8, 26, 4); g.endFill() // banda de techo
-    g.beginFill(0xd23b3b); g.drawRect(-2, -1, 4, 9); g.drawRect(-5, 2, 10, 3); g.endFill() // cruz
-    g.beginFill(0x9fdcf0); g.drawRect(-11, 2, 5, 5); g.drawRect(6, 2, 5, 5); g.endFill() // ventanas
-    g.beginFill(0x8fb8d8); g.drawRect(-4, 9, 8, 7); g.endFill() // entrada
-  }
-
-  /** Escuela: ladrillo, campanario con tejado, ventanas y puerta. @private */
-  _drawSchool (g) {
-    g.beginFill(0xcf7a3c); g.drawRect(-14, -2, 28, 18); g.endFill() // ladrillo
-    g.beginFill(0x7a3b1e); g.drawRect(-15, -5, 30, 4); g.endFill() // cornisa
-    g.beginFill(0xdf8a44); g.drawRect(-3, -15, 6, 11); g.endFill() // torre
-    g.beginFill(0x7a3b1e); g.drawPolygon([-5, -15, 0, -22, 5, -15]); g.endFill() // tejado torre
-    g.beginFill(0xffcf5a); g.drawRect(-1.5, -12, 3, 3); g.endFill() // campana
-    g.beginFill(0x9fdcf0); g.drawRect(-11, 3, 5, 6); g.drawRect(6, 3, 5, 6); g.endFill() // ventanas
-    g.beginFill(0x5a3a1e); g.drawRect(-3, 8, 7, 8); g.endFill() // puerta
-  }
-
-  /** Granja: granero rojo con tejado gambrel y silo. @private */
-  _drawFarm (g) {
+  /** Granja: granero + silo (color según época). @private */
+  _drawFarm (g, p) {
     g.beginFill(0xc3cace); g.drawRect(9, -6, 8, 22); g.endFill() // silo
-    g.beginFill(0x9aa2a8); g.drawPolygon([9, -6, 13, -11, 17, -6]); g.endFill() // cúpula silo
-    g.beginFill(0x8f989e); g.drawRect(9, -1, 8, 1); g.drawRect(9, 5, 8, 1); g.endFill() // aros
-    g.beginFill(0xb43a2f); g.drawRect(-15, -2, 20, 18); g.endFill() // granero
-    g.beginFill(0x8f2a20); g.drawPolygon([-16, -2, -12, -11, 2, -11, 6, -2]); g.endFill() // tejado gambrel
+    g.beginFill(0x9aa2a8); g.drawPolygon([9, -6, 13, -11, 17, -6]); g.endFill()
+    g.beginFill(0x8f989e); g.drawRect(9, -1, 8, 1); g.drawRect(9, 5, 8, 1); g.endFill()
+    g.beginFill(p.roof); g.drawRect(-15, -2, 20, 18); g.endFill() // granero
+    g.beginFill(p.roof2); g.drawPolygon([-16, -2, -12, -11, 2, -11, 6, -2]); g.endFill()
     g.beginFill(0xe8e4d8); g.drawRect(-8, 4, 10, 12); g.endFill() // puerta
-    g.beginFill(0xb43a2f); g.drawRect(-3.5, 4, 1, 12); g.drawRect(-8, 9, 10, 1); g.endFill() // cruces
+    g.beginFill(p.roof); g.drawRect(-3.5, 4, 1, 12); g.drawRect(-8, 9, 10, 1); g.endFill()
   }
 
-  /** Oficina: torre con rejilla de ventanas. @private */
-  _drawOffice (g) {
-    g.beginFill(0x5a6b7a); g.drawRect(-11, -18, 22, 34); g.endFill() // torre
-    g.beginFill(0x46545f); g.drawRect(-11, -20, 22, 3); g.endFill() // azotea
-    g.beginFill(0x9fd8ee)
-    for (let ry = -14; ry <= 8; ry += 6) {
-      for (let rx = -8; rx <= 4; rx += 6) g.drawRect(rx, ry, 4, 4)
+  /** Hospital: cuerpo blanco, banda roja, cruz y entrada. @private */
+  _drawHospital (g) {
+    g.beginFill(0xeef2f6); g.drawRect(-13, -4, 26, 20); g.endFill()
+    g.beginFill(0xd23b3b); g.drawRect(-13, -8, 26, 4); g.endFill()
+    g.beginFill(0xd23b3b); g.drawRect(-2, -1, 4, 9); g.drawRect(-5, 2, 10, 3); g.endFill()
+    g.beginFill(0x9fdcf0); g.drawRect(-11, 2, 5, 5); g.drawRect(6, 2, 5, 5); g.endFill()
+    g.beginFill(0x8fb8d8); g.drawRect(-4, 9, 8, 7); g.endFill()
+  }
+
+  /** Escuela: ladrillo con campanario. @private */
+  _drawSchool (g) {
+    g.beginFill(0xcf7a3c); g.drawRect(-14, -2, 28, 18); g.endFill()
+    g.beginFill(0x7a3b1e); g.drawRect(-15, -5, 30, 4); g.endFill()
+    g.beginFill(0xdf8a44); g.drawRect(-3, -15, 6, 11); g.endFill()
+    g.beginFill(0x7a3b1e); g.drawPolygon([-5, -15, 0, -22, 5, -15]); g.endFill()
+    g.beginFill(0xffcf5a); g.drawRect(-1.5, -12, 3, 3); g.endFill()
+    g.beginFill(0x9fdcf0); g.drawRect(-11, 3, 5, 6); g.drawRect(6, 3, 5, 6); g.endFill()
+    g.beginFill(0x5a3a1e); g.drawRect(-3, 8, 7, 8); g.endFill()
+  }
+
+  /** Prehistoria: tótem/poste tallado. @private */
+  _drawTotem (g) {
+    g.beginFill(0x7d7268); g.drawRect(-4, -18, 8, 34); g.endFill()
+    g.beginFill(0x9a5a3a); g.drawRect(-6, -16, 12, 8); g.endFill()
+    g.beginFill(0x5a8a5a); g.drawRect(-6, -4, 12, 8); g.endFill()
+    g.beginFill(0xcf9f5a); g.drawPolygon([-8, -16, 0, -24, 8, -16]); g.endFill()
+    g.beginFill(0x000000); g.drawRect(-3, -14, 2, 2); g.drawRect(1, -14, 2, 2); g.endFill()
+  }
+
+  /** Templo clásico: columnas y frontón. @private */
+  _drawTemple (g, p) {
+    g.beginFill(0xe8e2d2); g.drawRect(-16, 8, 32, 8); g.endFill()
+    g.beginFill(0xf2ecdc); for (let cx = -13; cx <= 13; cx += 6.5) g.drawRect(cx - 1.5, -4, 3, 12); g.endFill()
+    g.beginFill(0xd8d0be); g.drawRect(-16, -8, 32, 4); g.endFill()
+    g.beginFill(p.accent); g.drawPolygon([-17, -8, 0, -17, 17, -8]); g.endFill()
+  }
+
+  /** Mercado: puestos con toldos. @private */
+  _drawMarket (g) {
+    g.beginFill(0x8a6a44); g.drawRect(-15, 6, 30, 4); g.endFill()
+    const stall = (ox, c) => {
+      g.beginFill(0x6b4a2a); g.drawRect(ox - 8, -2, 2, 10); g.drawRect(ox + 6, -2, 2, 10); g.endFill()
+      for (let i = 0; i < 4; i++) { g.beginFill(i % 2 ? 0xffffff : c); g.drawRect(ox - 8 + i * 4, -6, 4, 4); g.endFill() }
+      g.beginFill(0xcf9f5a); g.drawRect(ox - 6, 2, 12, 4); g.endFill()
     }
+    stall(-8, 0xd23b3b); stall(8, 0x3a7ac0)
+  }
+
+  /** Granero circular con techo cónico. @private */
+  _drawGranary (g, p) {
+    g.beginFill(p.wall); g.drawRect(-9, -2, 18, 18); g.endFill()
+    g.beginFill(p.wall2); g.drawEllipse(0, -2, 9, 3); g.endFill()
+    g.beginFill(p.roof); g.drawPolygon([-11, -2, 0, -16, 11, -2]); g.endFill()
+    g.beginFill(p.door); g.drawRect(-3, 8, 6, 8); g.endFill()
+  }
+
+  /** Monumento: obelisco sobre base. @private */
+  _drawMonument (g, p) {
+    g.beginFill(0xcfc6b0); g.drawRect(-8, 12, 16, 4); g.endFill()
+    g.beginFill(0xe0d8c2); g.drawRect(-5, 6, 10, 6); g.endFill()
+    g.beginFill(0xece5d2); g.drawRect(-3, -18, 6, 24); g.endFill()
+    g.beginFill(p.accent); g.drawPolygon([-3, -18, 0, -24, 3, -18]); g.endFill()
+  }
+
+  /** Termas romanas con cúpula. @private */
+  _drawBathhouse (g) {
+    g.beginFill(0xe4ddca); g.drawRect(-14, -2, 28, 18); g.endFill()
+    for (const ax of [-9, 0, 9]) { g.beginFill(0x7a9ab0); g.drawRect(ax - 3, 4, 6, 10); g.endFill() }
+    g.beginFill(0xd8d0be); g.drawRect(-14, -4, 28, 3); g.endFill()
+    g.beginFill(0xb7c6cf); g.drawEllipse(0, -3, 10, 7); g.endFill()
+    g.beginFill(0xcf7a3c); g.drawRect(-1, -12, 2, 3); g.endFill()
+  }
+
+  /** Iglesia: nave, torre con aguja y cruz. @private */
+  _drawChurch (g) {
+    g.beginFill(0xc7bfa8); g.drawRect(-13, -2, 22, 18); g.endFill()
+    g.beginFill(0xb3ab94); g.drawRect(9, -14, 8, 30); g.endFill()
+    g.beginFill(0x8a4a34); g.drawPolygon([8, -14, 13, -24, 18, -14]); g.endFill()
+    g.beginFill(0xffcf5a); g.drawRect(12, -31, 2, 8); g.drawRect(10, -28, 6, 2); g.endFill()
+    g.beginFill(0x8a4a34); g.drawPolygon([-14, -2, -2, -12, 10, -2]); g.endFill()
+    g.beginFill(0x6b4626); g.drawRect(-6, 6, 8, 10); g.endFill()
+    g.beginFill(0x9fc6e0); g.drawCircle(-2, 0, 3); g.endFill()
+  }
+
+  /** Molino de viento. @private */
+  _drawMill (g, p) {
+    g.beginFill(p.wall); g.drawRect(-9, -2, 18, 18); g.endFill()
+    g.beginFill(p.roof); g.drawPolygon([-10, -2, 0, -14, 10, -2]); g.endFill()
+    g.beginFill(p.door); g.drawRect(-3, 8, 6, 8); g.endFill()
+    g.beginFill(0xe8e4d8)
+    g.drawPolygon([0, -8, -2, -20, 2, -20]); g.drawPolygon([0, -8, -12, -10, -12, -6])
+    g.drawPolygon([0, -8, 2, 4, -2, 4]); g.drawPolygon([0, -8, 12, -6, 12, -10])
     g.endFill()
-    g.beginFill(0x2f3a44); g.drawRect(-4, 10, 8, 6); g.endFill() // entrada
+    g.beginFill(0x5a4a3a); g.drawCircle(0, -8, 2); g.endFill()
   }
 
-  /** Tienda: cartel, toldo a rayas, escaparate y puerta. @private */
-  _drawShop (g) {
-    g.beginFill(0xd8c088); g.drawRect(-13, -2, 26, 18); g.endFill() // cuerpo
-    g.beginFill(0x3a5a8a); g.drawRect(-11, -8, 22, 5); g.endFill() // cartel
-    for (let i = 0; i < 8; i++) { // toldo a rayas
-      g.beginFill(i % 2 ? 0xffffff : 0xd23b3b)
-      g.drawRect(-13 + i * 3.25, -3, 3.25, 4)
-      g.endFill()
+  /** Herrería: fragua encendida, chimenea y yunque. @private */
+  _drawBlacksmith (g) {
+    g.beginFill(0x8a7a6a); g.drawRect(-13, -2, 24, 18); g.endFill()
+    g.beginFill(0x5a5048); g.drawRect(-14, -5, 26, 4); g.endFill()
+    g.beginFill(0x6b6058); g.drawRect(7, -16, 5, 12); g.endFill()
+    g.beginFill(0xff8a3c); g.drawRect(-9, 4, 8, 8); g.endFill()
+    g.beginFill(0xffd24a); g.drawRect(-7, 6, 4, 4); g.endFill()
+    g.beginFill(0x3a3a42); g.drawRect(2, 8, 8, 3); g.drawRect(4, 11, 4, 3); g.endFill()
+  }
+
+  /** Taberna: entramado de madera y cartel colgante. @private */
+  _drawTavern (g) {
+    g.beginFill(0xcaa06a); g.drawRect(-13, -2, 26, 18); g.endFill()
+    g.beginFill(0x6b4a2a); g.drawRect(-13, -2, 26, 2); g.drawRect(-13, 6, 26, 1.5); g.drawRect(-1, -2, 2, 18); g.endFill()
+    g.beginFill(0x8a4a34); g.drawPolygon([-15, -2, 0, -12, 15, -2]); g.endFill()
+    g.beginFill(0x6b4626); g.drawRect(-4, 7, 8, 9); g.endFill()
+    g.beginFill(0x4a3222); g.drawRect(9, -2, 6, 1.5); g.endFill()
+    g.beginFill(0x2f2a24); g.drawRect(12, -1, 5, 6); g.endFill()
+    g.beginFill(0xd8a24a); g.drawRect(13, 0, 3, 4); g.endFill()
+  }
+
+  /** Torre de vigilancia con almenas. @private */
+  _drawWatchtower (g) {
+    g.beginFill(0x9a9086); g.drawRect(-7, -20, 14, 36); g.endFill()
+    g.beginFill(0x7d746a); g.drawRect(-7, -20, 14, 3); g.endFill()
+    g.beginFill(0x9a9086); for (let bx = -7; bx < 7; bx += 4) g.drawRect(bx, -24, 2.5, 4); g.endFill()
+    g.beginFill(0x2f2a24); g.drawRect(-2, -14, 4, 5); g.drawRect(-2, -4, 4, 5); g.endFill()
+    g.beginFill(0x5a3a1e); g.drawRect(-3, 9, 6, 7); g.endFill()
+    g.beginFill(0xd23b3b); g.drawPolygon([0, -24, 0, -30, 7, -27]); g.endFill()
+  }
+
+  /** Biblioteca: columnas y frontón. @private */
+  _drawLibrary (g, p) {
+    g.beginFill(0xd8cfb8); g.drawRect(-15, -4, 30, 20); g.endFill()
+    g.beginFill(0xece5d0); for (let cx = -11; cx <= 11; cx += 5.5) g.drawRect(cx - 1.5, -2, 3, 14); g.endFill()
+    g.beginFill(0xbfae86); g.drawRect(-16, -8, 32, 4); g.endFill()
+    g.beginFill(p.accent); g.drawPolygon([-17, -8, 0, -16, 17, -8]); g.endFill()
+    g.beginFill(0x6b4626); g.drawRect(-4, 8, 8, 8); g.endFill()
+  }
+
+  /** Fábrica: ladrillo, chimeneas humeantes y techo dentado. @private */
+  _drawFactory (g) {
+    g.beginFill(0x8a4a3a); g.drawRect(-15, 0, 30, 16); g.endFill()
+    g.beginFill(0x5a4038); g.drawRect(6, -18, 5, 18); g.drawRect(12, -14, 4, 14); g.endFill()
+    g.beginFill(0x9a9088); g.drawRect(6, -19, 5, 2); g.endFill()
+    g.beginFill(0x556070); for (let sx = -15; sx < 4; sx += 6) g.drawPolygon([sx, 0, sx, -5, sx + 6, 0]); g.endFill()
+    g.beginFill(0x2f3a44); g.drawRect(-12, 6, 6, 10); g.endFill()
+    g.beginFill(0xbfc6cc); g.drawRect(-4, 4, 4, 4); g.drawRect(1, 4, 4, 4); g.endFill()
+    g.beginFill(0xffffff, 0.4); g.drawCircle(8, -20, 3); g.drawCircle(11, -24, 2.5); g.endFill()
+  }
+
+  /** Almacén: nave grande con portón. @private */
+  _drawWarehouse (g) {
+    g.beginFill(0x9aa0a6); g.drawRect(-16, 0, 32, 16); g.endFill()
+    g.beginFill(0x6f7982); g.drawRect(-17, -4, 34, 5); g.endFill()
+    g.beginFill(0x5a636b); g.drawRect(-8, 4, 16, 12); g.endFill()
+    g.beginFill(0x8a929a); for (let dx = -7; dx < 8; dx += 3) g.drawRect(dx, 4, 1.5, 12); g.endFill()
+  }
+
+  /** Laboratorio high-tech con antena. @private */
+  _drawLab (g, p) {
+    g.beginFill(p.wall2); g.drawRect(-13, -6, 26, 22); g.endFill()
+    g.beginFill(p.roof2); g.drawRect(-13, -8, 26, 3); g.endFill()
+    g.beginFill(p.accent); g.drawRect(-10, -2, 7, 5); g.drawRect(1, -2, 7, 5); g.drawRect(-10, 6, 7, 5); g.drawRect(1, 6, 7, 5); g.endFill()
+    g.beginFill(0x2f3a52); g.drawRect(-3, 10, 6, 6); g.endFill()
+    g.beginFill(0x9aa0a6); g.drawRect(-1, -16, 2, 8); g.endFill()
+    g.beginFill(p.accent); g.drawCircle(0, -16, 2); g.endFill()
+  }
+
+  /** Cúpula/hábitat futurista. @private */
+  _drawDome (g) {
+    g.beginFill(0x4a5876); g.drawRect(-13, 8, 26, 8); g.endFill()
+    g.beginFill(0x8fdceb, 0.88); g.drawEllipse(0, 4, 14, 12); g.endFill()
+    g.lineStyle(1, 0x5a6b8a, 0.6)
+    g.moveTo(-14, 4); g.lineTo(14, 4); g.moveTo(0, -8); g.lineTo(0, 16)
+    g.lineStyle(0)
+    g.beginFill(0xffffff, 0.25); g.drawEllipse(-4, 0, 3, 5); g.endFill()
+  }
+
+  /** Invernadero de cristal con plantas. @private */
+  _drawGreenhouse (g) {
+    g.beginFill(0xbfe6d6, 0.85); g.drawRect(-13, -2, 26, 18); g.endFill()
+    g.beginFill(0xbfe6d6, 0.85); g.drawPolygon([-14, -2, 0, -12, 14, -2]); g.endFill()
+    g.lineStyle(1, 0x7fae9a, 0.7)
+    for (let vx = -9; vx <= 9; vx += 6) { g.moveTo(vx, -2); g.lineTo(vx, 16) }
+    g.moveTo(-13, 6); g.lineTo(13, 6)
+    g.lineStyle(0)
+    g.beginFill(0x4a9a4a); g.drawRect(-10, 10, 3, 5); g.drawRect(-2, 9, 3, 6); g.drawRect(6, 10, 3, 5); g.endFill()
+  }
+
+  /** Aguja/rascacielos futurista. @private */
+  _drawSpire (g, p) {
+    g.beginFill(p.wall2); g.drawPolygon([-6, 16, -3, -22, 3, -22, 6, 16]); g.endFill()
+    g.beginFill(p.accent); g.drawPolygon([-3, -22, 0, -30, 3, -22]); g.endFill()
+    g.beginFill(0xffffff, 0.5); g.drawRect(-1, -18, 2, 30); g.endFill()
+    g.beginFill(p.accent); g.drawCircle(0, -30, 2); g.endFill()
+  }
+
+  /** Dibuja un prop decorativo. @private */
+  _drawProp (g, type, v) {
+    g.beginFill(0x000000, 0.18); g.drawEllipse(0, 6, 6, 2); g.endFill()
+    switch (type) {
+      case 'tree':
+        g.beginFill(0x6b4a2a); g.drawRect(-1.5, 0, 3, 7); g.endFill()
+        g.beginFill([0x3f8c3a, 0x357a30, 0x4a9a44][v % 3]); g.drawCircle(0, -3, 7); g.drawCircle(-4, 0, 5); g.drawCircle(4, 0, 5); g.endFill()
+        break
+      case 'bush':
+        g.beginFill([0x3f8c3a, 0x4a9a44, 0x357a30][v % 3]); g.drawCircle(-2, 2, 4); g.drawCircle(2, 1, 4); g.drawCircle(0, 3, 4); g.endFill()
+        break
+      case 'campfire':
+        g.beginFill(0x5a4030); g.drawRect(-5, 4, 10, 2); g.endFill()
+        g.beginFill(0x6b4a2a); g.drawRect(-4, 3, 3, 3); g.drawRect(2, 3, 3, 3); g.endFill()
+        g.beginFill(0xff7a2a); g.drawPolygon([-3, 4, 0, -4, 3, 4]); g.endFill()
+        g.beginFill(0xffd24a); g.drawPolygon([-1.5, 4, 0, -1, 1.5, 4]); g.endFill()
+        break
+      case 'totem_small':
+        g.beginFill(0x7d7268); g.drawRect(-2, -6, 4, 12); g.endFill()
+        g.beginFill(0x9a5a3a); g.drawRect(-3, -6, 6, 4); g.endFill()
+        g.beginFill(0x5a8a5a); g.drawRect(-3, 0, 6, 4); g.endFill()
+        break
+      case 'well':
+        g.beginFill(0x8a8078); g.drawRect(-5, 0, 10, 7); g.endFill()
+        g.beginFill(0x2a3a44); g.drawEllipse(0, 0, 5, 2.5); g.endFill()
+        g.beginFill(0x6b4a2a); g.drawRect(-6, -8, 1.5, 8); g.drawRect(4.5, -8, 1.5, 8); g.endFill()
+        g.beginFill(0x8a4a34); g.drawPolygon([-7, -8, 0, -12, 7, -8]); g.endFill()
+        break
+      case 'fountain':
+        g.beginFill(0xb7c0c6); g.drawEllipse(0, 4, 8, 4); g.endFill()
+        g.beginFill(0x6fb0d8); g.drawEllipse(0, 4, 6, 2.6); g.endFill()
+        g.beginFill(0xb7c0c6); g.drawRect(-1.5, -4, 3, 6); g.endFill()
+        g.beginFill(0x9fdcf0); g.drawCircle(0, -4, 2); g.endFill()
+        break
+      case 'statue':
+        g.beginFill(0xcfc6b0); g.drawRect(-4, 4, 8, 3); g.endFill()
+        g.beginFill(0xe0d8c4); g.drawRect(-2, -6, 4, 10); g.drawCircle(0, -7, 2.4); g.endFill()
+        break
+      case 'lamppost':
+        g.beginFill(0x3a3a42); g.drawRect(-1, -10, 2, 16); g.endFill()
+        g.beginFill(0xffd85a, 0.25); g.drawCircle(0, -11, 5); g.endFill()
+        g.beginFill(0xffd85a); g.drawCircle(0, -11, 2.4); g.endFill()
+        break
+      case 'barrel':
+        g.beginFill(0x8a5a2a); g.drawRect(-3, -2, 6, 8); g.endFill()
+        g.beginFill(0x5a3a1a); g.drawRect(-3, 0, 6, 1); g.drawRect(-3, 3, 6, 1); g.endFill()
+        break
+      case 'bench':
+        g.beginFill(0x6b4a2a); g.drawRect(-5, 0, 10, 2); g.drawRect(-5, 2, 1.5, 3); g.drawRect(3.5, 2, 1.5, 3); g.endFill()
+        break
+      case 'stall':
+        g.beginFill(0x6b4a2a); g.drawRect(-6, -1, 12, 6); g.endFill()
+        for (let i = 0; i < 4; i++) { g.beginFill(i % 2 ? 0xffffff : 0xd23b3b); g.drawRect(-6 + i * 3, -5, 3, 4); g.endFill() }
+        break
+      case 'antenna':
+        g.beginFill(0x9aa0a6); g.drawRect(-1, -12, 2, 18); g.endFill()
+        g.lineStyle(1, 0x9aa0a6, 0.8); g.moveTo(0, -6); g.lineTo(-5, -2); g.moveTo(0, -6); g.lineTo(5, -2); g.lineStyle(0)
+        g.beginFill(0x7fe0d8); g.drawCircle(0, -12, 2); g.endFill()
+        break
+      case 'solar':
+        g.beginFill(0x2a3a5a); g.drawPolygon([-6, 0, 6, -2, 6, 3, -6, 5]); g.endFill()
+        g.beginFill(0x4a7ac0); g.drawRect(-5, -1, 4, 3); g.drawRect(0, -1.5, 4, 3); g.endFill()
+        g.beginFill(0x555555); g.drawRect(-0.5, 3, 1, 4); g.endFill()
+        break
+      case 'planter':
+        g.beginFill(0x6f86a6); g.drawRect(-5, 2, 10, 4); g.endFill()
+        g.beginFill(0x4a9a4a); g.drawCircle(-2, 1, 2.5); g.drawCircle(2, 0, 2.5); g.endFill()
+        break
+      default:
+        g.beginFill(0x4a9a44); g.drawCircle(0, 0, 4); g.endFill()
     }
-    g.beginFill(0x9fdcf0); g.drawRect(-11, 3, 13, 9); g.endFill() // escaparate
-    g.beginFill(0x6b4626); g.drawRect(4, 4, 8, 12); g.endFill() // puerta
   }
 
   /**
@@ -692,9 +970,11 @@ export class GameScene {
     this.npcSprites.forEach(sprite => sprite.destroy())
     this.npcLabels.forEach(label => label.destroy())
     this.buildingGraphics.forEach(graphic => graphic.destroy())
+    this.propGraphics.forEach(graphic => graphic.destroy())
     this.npcSprites.clear()
     this.npcLabels.clear()
     this.buildingGraphics.clear()
+    this.propGraphics.clear()
     this.prevNPCStates.clear()
 
     // Destruir la aplicación Pixi

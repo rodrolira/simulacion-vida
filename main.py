@@ -24,7 +24,7 @@ from world import World
 from components import (
     ActionState, Bed, Building, Disease, Emotions,
     Health, Identity, Inventory, Memory, Needs,
-    Personality, Position, Profession, Relationships,
+    Personality, Position, Profession, Prop, Relationships,
     Residence, Schedule, Shop, Wallet, Workplace
 )
 from systems import (
@@ -107,8 +107,8 @@ WORLD_CX, WORLD_CY = 100, 75
 INIT_HALF_W, INIT_HALF_H = 26, 20          # semi-extensión inicial (mundo pequeño)
 GROW_W_PER_NPC, GROW_H_PER_NPC = 1.8, 1.35  # cuánto crece por NPC
 INITIAL_BUILDINGS = 10
-NPCS_PER_NEW_BUILDING = 4                   # 1 edificio nuevo cada N NPCs
-MAX_BUILDINGS = 40
+NPCS_PER_NEW_BUILDING = 3                   # 1 edificio nuevo cada N NPCs
+MAX_BUILDINGS = 55
 
 # Contadores para nombrar los edificios nuevos (se reinician en init_world)
 _building_counter = {"house": 4, "shop": 2, "office": 1, "farm": 1}
@@ -128,6 +128,7 @@ def compute_world_bounds(npc_count: int) -> dict:
 
 # Límites del mundo explorado (se actualizan cada tick según la población)
 world_bounds = compute_world_bounds(0)
+_last_era_index = -1  # para plantar un emblemático al cambiar de era
 
 
 # ------------------------------------------------------------
@@ -135,7 +136,7 @@ world_bounds = compute_world_bounds(0)
 # ------------------------------------------------------------
 def init_world():
     """Crea el mundo inicial con edificios, NPCs y recursos."""
-    global terrain_data, world_bounds
+    global terrain_data, world_bounds, _last_era_index
 
     # Generar terreno
     terrain_data = terrain_gen.generate()
@@ -143,6 +144,7 @@ def init_world():
     # Reiniciar contadores de nombres y límites (el mundo empieza pequeño y crece)
     _building_counter.update({"house": 4, "shop": 2, "office": 1, "farm": 1})
     world_bounds = compute_world_bounds(0)
+    _last_era_index = -1
     # La civilización empieza en la prehistoria
     era_sys.index = 0
     era_sys.knowledge = 0.0
@@ -160,31 +162,32 @@ def init_world():
                 building_positions.append((x, y))
                 break
 
-    # --- Edificios ---
+    # --- Edificios --- (estilo de la época inicial)
+    E0 = "antiquity"
     hospital = world.create_entity()
     world.add_component(hospital, Position(building_positions[0][0], building_positions[0][1]))
-    world.add_component(hospital, Building("hospital", "Hospital Central", 20))
+    world.add_component(hospital, Building("hospital", "Hospital Central", 20, era=E0))
 
     school = world.create_entity()
     world.add_component(school, Position(building_positions[1][0], building_positions[1][1]))
-    world.add_component(school, Building("school", "Escuela Primaria", 30))
+    world.add_component(school, Building("school", "Escuela Primaria", 30, era=E0))
 
     farm = world.create_entity()
     world.add_component(farm, Position(building_positions[2][0], building_positions[2][1]))
-    world.add_component(farm, Building("farm", "Granja El Sol", 10))
+    world.add_component(farm, Building("farm", "Granja El Sol", 10, era=E0))
 
     office = world.create_entity()
     world.add_component(office, Position(building_positions[3][0], building_positions[3][1]))
-    world.add_component(office, Building("office", "Tech Hub", 15))
+    world.add_component(office, Building("office", "Tech Hub", 15, era=E0))
 
     shop1 = world.create_entity()
     world.add_component(shop1, Position(building_positions[4][0], building_positions[4][1]))
-    world.add_component(shop1, Building("shop", "Tienda 1", 5))
+    world.add_component(shop1, Building("shop", "Tienda 1", 5, era=E0))
     world.add_component(shop1, Shop(price_per_unit=8 + random.uniform(0, 5), stock=50))
 
     shop2 = world.create_entity()
     world.add_component(shop2, Position(building_positions[5][0], building_positions[5][1]))
-    world.add_component(shop2, Building("shop", "Tienda 2", 5))
+    world.add_component(shop2, Building("shop", "Tienda 2", 5, era=E0))
     world.add_component(shop2, Shop(price_per_unit=10 + random.uniform(0, 3), stock=40))
 
     # Casas con camas
@@ -192,9 +195,13 @@ def init_world():
     for i in range(6, 10):
         e = world.create_entity()
         world.add_component(e, Position(building_positions[i][0], building_positions[i][1]))
-        world.add_component(e, Building("house", f"Casa {i-5}", 4))
+        world.add_component(e, Building("house", f"Casa {i-5}", 4, era=E0))
         world.add_component(e, Bed(comfort=1.2))
         houses.append(e)
+
+    # Decoración inicial alrededor del pueblo (densidad desde el arranque)
+    for _ in range(16):
+        _scatter_props(WORLD_CX, WORLD_CY, 1)
 
     # --- NPCs ---
     npc_configs = [
@@ -404,25 +411,100 @@ def collect_global_events():
 # ------------------------------------------------------------
 # Expansión del asentamiento (el mundo crece con la población)
 # ------------------------------------------------------------
+# Edificios emblemáticos que aparecen en cada época (arquitectura propia).
+ERA_LANDMARKS = {
+    "prehistory": ["totem"],
+    "antiquity": ["temple", "market", "granary"],
+    "classical": ["temple", "market", "monument", "bathhouse"],
+    "medieval": ["church", "mill", "blacksmith", "tavern", "watchtower"],
+    "renaissance": ["church", "library", "tavern", "market", "monument"],
+    "industrial": ["factory", "warehouse", "watchtower", "library"],
+    "information": ["library", "market", "monument"],
+    "ai": ["lab", "library", "monument"],
+    "space": ["dome", "lab", "greenhouse"],
+    "singularity": ["dome", "lab", "spire"],
+}
+# Props decorativos por grupo de época (para densidad y ambiente).
+ERA_GROUP = {
+    "prehistory": "ancient", "antiquity": "ancient",
+    "classical": "classical", "medieval": "classical",
+    "renaissance": "early_modern", "industrial": "early_modern",
+    "information": "modern", "ai": "future", "space": "future", "singularity": "future",
+}
+ERA_PROPS = {
+    "ancient": ["tree", "tree", "tree", "bush", "bush", "campfire", "totem_small"],
+    "classical": ["tree", "tree", "bush", "well", "statue"],
+    "early_modern": ["tree", "well", "fountain", "lamppost", "barrel"],
+    "modern": ["tree", "lamppost", "bench", "stall"],
+    "future": ["tree", "antenna", "solar", "planter", "lamppost"],
+}
+MAX_PROPS = 160        # tope duro (rendimiento)
+AMBIENT_PROPS = 100    # relleno ambiental; deja sitio para props de épocas posteriores
+
+
+def _current_era() -> str:
+    return era_sys.ERAS[era_sys.index]
+
+
+def _free_spot(b, existing, tiles, min_dist):
+    """Busca un punto válido (no agua/montaña, separado de lo existente)."""
+    for _ in range(30):
+        x = random.randint(b["minX"] + 1, b["maxX"] - 1)
+        y = random.randint(b["minY"] + 1, b["maxY"] - 1)
+        if tiles and tiles[y][x] in ("water", "mountain"):
+            continue
+        if any(abs(px - x) < min_dist and abs(py - y) < min_dist for px, py in existing):
+            continue
+        return x, y
+    return None
+
+
+def _scatter_props(cx: int, cy: int, count: int) -> None:
+    """Esparce props decorativos de la época cerca de (cx, cy)."""
+    if world.count_entities_with_component(Prop) >= MAX_PROPS:
+        return
+    group = ERA_GROUP.get(_current_era(), "classical")
+    pool = ERA_PROPS.get(group, ERA_PROPS["classical"])
+    tiles = terrain_data["tiles"] if terrain_data else None
+    for _ in range(count):
+        x = max(1, min(WORLD_W - 1, cx + random.randint(-6, 6)))
+        y = max(1, min(WORLD_H - 1, cy + random.randint(-6, 6)))
+        if tiles and tiles[y][x] in ("water", "mountain"):
+            continue
+        e = world.create_entity()
+        world.add_component(e, Position(x, y))
+        world.add_component(e, Prop(prop_type=random.choice(pool), variant=random.randint(0, 2)))
+
+
 def _spawn_frontier_building(x: int, y: int) -> None:
-    """Crea un edificio nuevo del tipo adecuado en la frontera del asentamiento."""
+    """Crea un edificio nuevo (funcional o emblemático) con el estilo de la época actual."""
+    era = _current_era()
     e = world.create_entity()
     world.add_component(e, Position(x, y))
+
+    landmarks = ERA_LANDMARKS.get(era, [])
     r = random.random()
-    if r < 0.55:
+
+    # ~25% edificio emblemático de la época (si hay), si no, funcional.
+    if landmarks and r < 0.25:
+        lm = random.choice(landmarks)
+        world.add_component(e, Building(lm, "", 8, era=era))
+    elif r < 0.62:
         _building_counter["house"] += 1
-        world.add_component(e, Building("house", f"Casa {_building_counter['house']}", 4))
+        world.add_component(e, Building("house", f"Casa {_building_counter['house']}", 4, era=era))
         world.add_component(e, Bed(comfort=1.2))
-    elif r < 0.75:
+    elif r < 0.80:
         _building_counter["shop"] += 1
-        world.add_component(e, Building("shop", f"Tienda {_building_counter['shop']}", 5))
+        world.add_component(e, Building("shop", f"Tienda {_building_counter['shop']}", 5, era=era))
         world.add_component(e, Shop(price_per_unit=8 + random.uniform(0, 6), stock=random.randint(30, 60)))
-    elif r < 0.88:
+    elif r < 0.92:
         _building_counter["office"] += 1
-        world.add_component(e, Building("office", f"Oficina {_building_counter['office']}", 15))
+        world.add_component(e, Building("office", f"Oficina {_building_counter['office']}", 15, era=era))
     else:
         _building_counter["farm"] += 1
-        world.add_component(e, Building("farm", f"Granja {_building_counter['farm']}", 10))
+        world.add_component(e, Building("farm", f"Granja {_building_counter['farm']}", 10, era=era))
+
+    _scatter_props(x, y, random.randint(1, 3))
 
 
 def _add_frontier_building() -> None:
@@ -433,27 +515,50 @@ def _add_frontier_building() -> None:
     tiles = terrain_data["tiles"] if terrain_data else None
     existing = [(world.get_component(e, Position).x, world.get_component(e, Position).y)
                 for e in world.entities_with_components(Building, Position)]
-    for _ in range(40):
-        x = random.randint(b["minX"] + 2, b["maxX"] - 2)
-        y = random.randint(b["minY"] + 2, b["maxY"] - 2)
-        if tiles and tiles[y][x] in ("water", "mountain"):
-            continue
-        if any(abs(px - x) < 5 and abs(py - y) < 5 for px, py in existing):
-            continue
-        _spawn_frontier_building(x, y)
+    spot = _free_spot(b, existing, tiles, 5)
+    if spot:
+        _spawn_frontier_building(spot[0], spot[1])
+
+
+def _spawn_landmark(building_type: str) -> None:
+    """Coloca un edificio emblemático concreto en un punto libre de la frontera."""
+    b = world_bounds
+    if b["maxX"] - b["minX"] < 6:
         return
+    tiles = terrain_data["tiles"] if terrain_data else None
+    existing = [(world.get_component(e, Position).x, world.get_component(e, Position).y)
+                for e in world.entities_with_components(Building, Position)]
+    spot = _free_spot(b, existing, tiles, 5)
+    if spot:
+        e = world.create_entity()
+        world.add_component(e, Position(spot[0], spot[1]))
+        world.add_component(e, Building(building_type, "", 8, era=_current_era()))
+        _scatter_props(spot[0], spot[1], 2)
 
 
 def update_world_expansion() -> None:
     """Actualiza los límites explorados y hace crecer el asentamiento con la población."""
-    global world_bounds
+    global world_bounds, _last_era_index
     npc_count = len(world.entities_with_components(Identity))
     world_bounds = compute_world_bounds(npc_count)
+
+    # Cada nueva era deja su marca arquitectónica: planta un emblemático propio.
+    if era_sys.index != _last_era_index:
+        _last_era_index = era_sys.index
+        lms = ERA_LANDMARKS.get(_current_era(), [])
+        if lms and world.count_entities_with_component(Building) < MAX_BUILDINGS:
+            _spawn_landmark(random.choice(lms))
 
     target = INITIAL_BUILDINGS + npc_count // NPCS_PER_NEW_BUILDING
     current = world.count_entities_with_component(Building)
     if current < target and current < MAX_BUILDINGS:
         _add_frontier_building()  # como máximo uno por tick
+    # Rellenar el mundo con vegetación/props ambientales, poco a poco (deja
+    # sitio para que las épocas posteriores añadan sus propios props junto a
+    # los edificios nuevos).
+    elif world.count_entities_with_component(Prop) < AMBIENT_PROPS and world.tick % 15 == 0:
+        b = world_bounds
+        _scatter_props((b["minX"] + b["maxX"]) // 2, (b["minY"] + b["maxY"]) // 2, 1)
 
 
 # ------------------------------------------------------------

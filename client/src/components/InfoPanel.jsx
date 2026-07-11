@@ -4,6 +4,9 @@ import { useI18n } from '../i18n';
 
 const BUILDING_ICON = {
     hospital: '🏥', school: '🏫', farm: '🌾', office: '🏢', shop: '🏪', house: '🏠',
+    totem: '🗿', temple: '🏛️', market: '🛒', granary: '🌽', monument: '🗼', bathhouse: '♨️',
+    church: '⛪', mill: '🌬️', blacksmith: '🔨', tavern: '🍺', watchtower: '🗼', library: '📚',
+    factory: '🏭', warehouse: '📦', lab: '🔬', dome: '🛸', greenhouse: '🌱', spire: '🏙️',
 };
 
 const PANEL = {
