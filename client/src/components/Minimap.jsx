@@ -114,9 +114,11 @@ export default function Minimap({ worldState, camera, terrainData, worldBounds, 
     return (
         <canvas ref={canvasRef} width={width} height={height}
             onClick={handleClick}
+            className="hud-panel"
             style={{
-                border: '2px solid rgba(255,255,255,0.3)',
-                borderRadius: 4,
+                display: 'block',
+                border: '1px solid var(--border-strong)',
+                borderRadius: 'var(--r-md)',
                 imageRendering: 'pixelated',
                 cursor: onNavigate ? 'pointer' : 'default',
             }}

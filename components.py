@@ -158,6 +158,11 @@ class Workplace:
 
 
 @dataclass
+class Residence:
+    building_id: int  # entidad de la casa donde vive el NPC
+
+
+@dataclass
 class Schedule:
     phase: str = "free"  # "sleep", "work", "free"
     wake_up: int = 7  # hora de despertar

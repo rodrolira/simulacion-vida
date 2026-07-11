@@ -25,7 +25,7 @@ from components import (
     ActionState, Bed, Building, Disease, Emotions,
     Health, Identity, Inventory, Memory, Needs,
     Personality, Position, Profession, Relationships,
-    Schedule, Shop, Wallet, Workplace
+    Residence, Schedule, Shop, Wallet, Workplace
 )
 from systems import (
     TimeSystem, NeedSystem, PerceptionSystem, EmotionSystem,
@@ -183,11 +183,13 @@ def init_world():
     world.add_component(shop2, Shop(price_per_unit=10 + random.uniform(0, 3), stock=40))
 
     # Casas con camas
+    houses: list[int] = []
     for i in range(6, 10):
         e = world.create_entity()
         world.add_component(e, Position(building_positions[i][0], building_positions[i][1]))
         world.add_component(e, Building("house", f"Casa {i-5}", 4))
         world.add_component(e, Bed(comfort=1.2))
+        houses.append(e)
 
     # --- NPCs ---
     npc_configs = [
@@ -206,8 +208,11 @@ def init_world():
         "programmer": 200, "trader": 100, "unemployed": 15
     }
 
-    for cfg in npc_configs:
+    for idx, cfg in enumerate(npc_configs):
         e = world.create_entity()
+
+        # Cada NPC vive en una casa (round-robin entre las 4 iniciales)
+        world.add_component(e, Residence(building_id=houses[idx % len(houses)]))
 
         world.add_component(e, Identity(
             name=cfg["name"], age=cfg["age"], sex=cfg["sex"],
@@ -839,6 +844,10 @@ async def create_npc(payload: dict = None):
 
     async with world_lock:
         e = world.create_entity()
+        house_candidates = [b for b in world.entities_with_components(Building, Bed)
+                            if world.get_component(b, Building).building_type == "house"]
+        if house_candidates:
+            world.add_component(e, Residence(building_id=random.choice(house_candidates)))
         world.add_component(e, Identity(name=name, age=age, sex=sex, culture=culture,
                                         education=random.uniform(0.3, 0.9)))
         world.add_component(e, Position(x, y))

@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 
-export default function Notifications({ events = [], onDismiss, maxNotifications = 8 }) {
+const SEVERITY = {
+    info: { color: 'var(--info)', icon: 'ℹ️' },
+    warning: { color: 'var(--warn)', icon: '⚠️' },
+    critical: { color: 'var(--bad)', icon: '🚨' },
+};
+
+export default function Notifications({ events = [], onDismiss, maxNotifications = 6 }) {
     const [notifications, setNotifications] = useState([]);
 
     useEffect(() => {
@@ -23,28 +29,30 @@ export default function Notifications({ events = [], onDismiss, maxNotifications
         return () => clearInterval(timer);
     }, []);
 
-    const severityConfig = {
-        info: { color: '#4488cc', icon: 'ℹ️' },
-        warning: { color: '#ccaa44', icon: '⚠️' },
-        critical: { color: '#cc4444', icon: '🚨' },
-    };
-
     const visible = notifications.filter(n => n.shown);
     if (!visible.length) return null;
 
     return (
-        <div style={{ position: 'absolute', top: 70, right: 10, zIndex: 20, display: 'flex', flexDirection: 'column', gap: 6, maxWidth: 350 }}>
+        <div style={{
+            position: 'absolute', top: 12, right: 12, zIndex: 20,
+            display: 'flex', flexDirection: 'column', gap: 6, maxWidth: 340, alignItems: 'stretch',
+        }}>
             {visible.map(n => {
-                const cfg = severityConfig[n.severity] || severityConfig.info;
+                const cfg = SEVERITY[n.severity] || SEVERITY.info;
                 return (
-                    <div key={n.id} onClick={() => onDismiss?.(n.tick)}
+                    <div
+                        key={n.id}
+                        onClick={() => onDismiss?.(n.tick)}
+                        className="hud-panel"
                         style={{
-                            background: 'rgba(0,0,0,0.9)', color: '#fff',
-                            padding: '10px 14px', borderRadius: 8,
-                            borderLeft: `4px solid ${cfg.color}`,
-                            cursor: 'pointer', fontFamily: 'monospace', fontSize: 12,
+                            display: 'flex', alignItems: 'flex-start', gap: 9,
+                            padding: '9px 12px', cursor: 'pointer', fontSize: 12,
+                            color: 'var(--ink-2)', lineHeight: 1.4,
+                            borderLeft: `3px solid ${cfg.color}`,
+                            animation: 'slideIn 220ms cubic-bezier(0.23,1,0.32,1)',
                         }}>
-                        <span>{cfg.icon}</span> {n.description}
+                        <span style={{ fontSize: 13, marginTop: 1 }}>{cfg.icon}</span>
+                        <span>{n.description}</span>
                     </div>
                 );
             })}

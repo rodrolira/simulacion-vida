@@ -10,7 +10,7 @@ import { useWebSocket } from './hooks/useWebSocket';
 import { worldState } from './store/WorldState';
 
 export default function App() {
-    const [selectedId, setSelectedId] = useState(null);
+    const [selected, setSelected] = useState(null); // {kind:'npc'|'building', id} | null
     const [forceRender, setForceRender] = useState(0);
     const [timeStr, setTimeStr] = useState('06:00');
     const [day, setDay] = useState(1);
@@ -134,18 +134,31 @@ export default function App() {
         send({ command: 'get_info', entity_id: entityId });
     };
 
-    // Lista de NPCs viva (se recalcula con cada mensaje del WebSocket)
+    // Listas vivas (se recalculan con cada mensaje del WebSocket)
     const npcs = worldState.getNPCs();
+    const buildings = worldState.getBuildings();
 
     // Mapa id -> nombre, para mostrar CON QUIÉN interactúa cada NPC
     const nameById = {};
     npcs.forEach(n => { if (n.Identity?.name) nameById[n.id] = n.Identity.name; });
+    const buildingNameById = {};
+    buildings.forEach(b => { if (b.Building?.name) buildingNameById[b.id] = b.Building.name; });
 
-    // NPC seleccionado, re-derivado del estado del mundo en cada frame para que
-    // el panel muestre datos EN VIVO (necesidades, emociones, relaciones, memoria).
-    const selectedNPC = selectedId != null
-        ? (npcs.find(n => n.id === selectedId) || null)
+    // Selección re-derivada del estado del mundo en cada frame → datos EN VIVO.
+    const selectedNPC = selected?.kind === 'npc'
+        ? (npcs.find(n => n.id === selected.id) || null)
         : null;
+    const selectedBuilding = selected?.kind === 'building'
+        ? (buildings.find(b => b.id === selected.id) || null)
+        : null;
+
+    // Ocupantes del edificio seleccionado: quién vive y quién trabaja aquí
+    const residents = selectedBuilding
+        ? npcs.filter(n => n.Residence?.building_id === selectedBuilding.id)
+        : [];
+    const workers = selectedBuilding
+        ? npcs.filter(n => n.Workplace?.building_id === selectedBuilding.id)
+        : [];
 
     // Limpiar eventos antiguos periódicamente
     const handleDismissNotification = (eventId) => {
@@ -160,7 +173,7 @@ export default function App() {
                     <PixiCanvas
                         worldState={worldState}
                         forceRender={forceRender}
-                        onSelectNPC={setSelectedId}
+                        onSelectNPC={setSelected}
                         timeStr={timeStr}
                         terrainData={terrainData}
                         weather={weather}
@@ -193,13 +206,7 @@ export default function App() {
                 <AdminPanel onTriggerEvent={handleTriggerEvent} />
 
                 {/* Minimapa */}
-                <div style={{
-                    position: 'absolute',
-                    bottom: 10,
-                    right: 10,
-                    zIndex: 10,
-                    pointerEvents: 'auto'
-                }}>
+                <div style={{ position: 'absolute', bottom: 12, right: 12, zIndex: 10, pointerEvents: 'auto' }}>
                     <Minimap
                         worldState={worldState}
                         camera={minimapCam}
@@ -209,61 +216,19 @@ export default function App() {
                         onNavigate={(x, y) => scene?.centerOn(x, y)}
                     />
                 </div>
-
-                {/* Indicador de clima */}
-                {weather && weather !== 'clear' && (
-                    <div style={{
-                        position: 'absolute',
-                        top: 10,
-                        right: 10,
-                        zIndex: 10,
-                        background: 'rgba(0,0,0,0.6)',
-                        color: '#fff',
-                        padding: '6px 12px',
-                        borderRadius: 6,
-                        fontFamily: 'monospace',
-                        fontSize: 13,
-                        pointerEvents: 'none'
-                    }}>
-                        {weather === 'rain' && '🌧️ Lluvia'}
-                        {weather === 'storm' && '⛈️ Tormenta'}
-                        {weather === 'drought' && '☀️ Sequía'}
-                        {weather === 'cloudy' && '☁️ Nublado'}
-                    </div>
-                )}
             </div>
 
             {/* Panel lateral de información del NPC seleccionado */}
             <InfoPanel
                 npc={selectedNPC}
+                building={selectedBuilding}
+                residents={residents}
+                workers={workers}
                 nameById={nameById}
+                buildingNameById={buildingNameById}
+                onSelectNPC={(id) => setSelected({ kind: 'npc', id })}
                 onRequestInfo={handleRequestEntityInfo}
             />
         </div>
     );
 }
-
-// Estilos globales para animaciones
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from {
-            opacity: 0;
-            transform: translateX(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
-    }
-
-    @keyframes fadeOut {
-        from {
-            opacity: 1;
-        }
-        to {
-            opacity: 0;
-        }
-    }
-`;
-document.head.appendChild(style);

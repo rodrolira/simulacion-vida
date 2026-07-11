@@ -1,53 +1,68 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 
+const WEATHER = {
+    clear: { icon: '☀️', label: 'Despejado' },
+    cloudy: { icon: '☁️', label: 'Nublado' },
+    rain: { icon: '🌧️', label: 'Lluvia' },
+    storm: { icon: '⛈️', label: 'Tormenta' },
+    drought: { icon: '🌵', label: 'Sequía' },
+    fog: { icon: '🌫️', label: 'Niebla' },
+    snow: { icon: '❄️', label: 'Nieve' },
+};
+
 export default function HUD({ timeStr, day, npcCount, fps, speed, running, weather, onSpeedChange, onPause, onResume }) {
     const speeds = [0.5, 1, 2, 5, 10];
+    const wx = WEATHER[weather] || WEATHER.clear;
 
     return (
-        <div style={{
-            position: 'absolute', top: 10, left: 10, zIndex: 10,
-            background: 'rgba(0,0,0,0.75)', color: '#fff',
-            padding: '10px 16px', borderRadius: 8,
-            fontFamily: 'monospace', fontSize: 13, minWidth: 200,
+        <div className="hud-panel" style={{
+            position: 'absolute', top: 12, left: 12, zIndex: 10,
+            padding: 14, minWidth: 214, animation: 'panelIn 220ms cubic-bezier(0.23,1,0.32,1)',
         }}>
-            <div style={{ marginBottom: 8 }}>
-                <strong style={{ fontSize: 16 }}>🕐 Día {day} - {timeStr}</strong>
-                {weather && weather !== 'clear' && (
-                    <span style={{ marginLeft: 8 }}>
-                        {weather === 'rain' && '🌧️'}
-                        {weather === 'storm' && '⛈️'}
-                        {weather === 'drought' && '☀️'}
-                        {' '}{weather}
-                    </span>
-                )}
+            {/* Foco: reloj del mundo */}
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                <span className="tnum" style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)', letterSpacing: '0.02em' }}>
+                    {timeStr}
+                </span>
+                <span style={{ fontSize: 11, color: 'var(--ink-3)', letterSpacing: '0.06em' }}>
+                    DÍA <span className="tnum" style={{ color: 'var(--amber)', fontWeight: 600 }}>{day}</span>
+                </span>
             </div>
-            <div style={{ fontSize: 11, color: '#aaa', marginBottom: 8 }}>
-                <div>👥 NPCs: <span style={{ color: '#fff' }}>{npcCount}</span></div>
-                <div>⚡ <span style={{ color: fps < 30 ? '#f44' : '#4f4' }}>{fps}</span> FPS</div>
+
+            {/* Meta: clima · población · fps */}
+            <div style={{
+                display: 'flex', alignItems: 'center', gap: 12, marginTop: 8,
+                fontSize: 11, color: 'var(--ink-3)',
+            }}>
+                <span title={wx.label}>{wx.icon} {wx.label}</span>
             </div>
-            <div style={{ borderTop: '1px solid #444', paddingTop: 8 }}>
-                <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 6 }}>
-                    <button onClick={running ? onPause : onResume}
-                        style={{
-                            padding: '5px 14px',
-                            background: running ? '#aa4444' : '#44aa44',
-                            border: 'none', borderRadius: 4, color: '#fff',
-                            cursor: 'pointer', fontSize: 12, fontFamily: 'monospace',
-                        }}>
-                        {running ? '⏸ Pausa' : '▶ Play'}
-                    </button>
-                </div>
-                <div style={{ display: 'flex', gap: 3 }}>
+            <div style={{ display: 'flex', gap: 14, marginTop: 4, fontSize: 11, color: 'var(--ink-3)' }}>
+                <span>👥 <span className="tnum" style={{ color: 'var(--ink-2)' }}>{npcCount}</span></span>
+                <span>⚡ <span className="tnum" style={{ color: fps < 30 ? 'var(--bad)' : 'var(--ok)' }}>{fps}</span> fps</span>
+            </div>
+
+            {/* Controles */}
+            <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 10 }}>
+                <button
+                    className="btn"
+                    onClick={running ? onPause : onResume}
+                    style={{
+                        width: '100%', padding: '7px 0', marginBottom: 8, fontSize: 12, fontWeight: 600,
+                        color: running ? 'var(--bad)' : 'var(--ok)',
+                        borderColor: running ? 'rgba(224,112,92,0.3)' : 'rgba(134,192,122,0.3)',
+                        background: running ? 'rgba(224,112,92,0.10)' : 'rgba(134,192,122,0.10)',
+                    }}>
+                    {running ? '⏸  Pausa' : '▶  Reanudar'}
+                </button>
+                <div style={{ display: 'flex', gap: 4 }}>
                     {speeds.map(s => (
-                        <button key={s} onClick={() => onSpeedChange(s)}
-                            style={{
-                                padding: '3px 8px',
-                                background: speed === s ? '#5588cc' : '#333',
-                                border: 'none', borderRadius: 3, color: '#fff',
-                                cursor: 'pointer', fontSize: 10, fontFamily: 'monospace',
-                            }}>
-                            {s}x
+                        <button
+                            key={s}
+                            onClick={() => onSpeedChange(s)}
+                            className={`btn btn-seg ${speed === s ? 'is-active' : ''}`}
+                            style={{ flex: 1, padding: '5px 0', fontSize: 11, fontWeight: 600 }}>
+                            {s}×
                         </button>
                     ))}
                 </div>

@@ -316,7 +316,8 @@ export class GameScene {
         graphic = this._createBuildingGraphic(b)
         graphic.eventMode = 'static'
         graphic.cursor = 'pointer'
-        graphic.on('click', () => onSelectNPC(null))
+        const buildingId = b.id
+        graphic.on('click', () => onSelectNPC({ kind: 'building', id: buildingId }))
         this.buildingLayer.addChild(graphic)
         this.buildingGraphics.set(b.id, graphic)
       }
@@ -349,9 +350,9 @@ export class GameScene {
         sprite = this.spriteManager.createNPCSprite(variant)
         sprite.eventMode = 'static'
         sprite.cursor = 'pointer'
-        // Pasar el id (no el objeto) para que el panel muestre datos EN VIVO.
+        // Pasar {kind, id} (no el objeto) para que el panel muestre datos EN VIVO.
         const id = npc.id
-        sprite.on('click', () => onSelectNPC(id))
+        sprite.on('click', () => onSelectNPC({ kind: 'npc', id }))
         this.npcLayer.addChild(sprite)
         this.npcSprites.set(npc.id, sprite)
 

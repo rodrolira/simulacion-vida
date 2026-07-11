@@ -1,58 +1,66 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 
+const EVENTS = [
+    { id: 'epidemic', label: 'Epidemia', icon: '🦠', tone: 'var(--bad)' },
+    { id: 'economic_crisis', label: 'Crisis económica', icon: '📉', tone: 'var(--warn)' },
+    { id: 'migration', label: 'Migración', icon: '👥', tone: 'var(--ok)' },
+    { id: 'storm', label: 'Tormenta', icon: '⛈️', tone: 'var(--info)' },
+    { id: 'drought', label: 'Sequía', icon: '🌵', tone: 'var(--warn)' },
+    { id: 'miracle', label: 'Milagro', icon: '✨', tone: 'var(--amber)' },
+    { id: 'party', label: 'Fiesta', icon: '🎉', tone: 'var(--amber)' },
+];
+
 export default function AdminPanel({ onTriggerEvent }) {
     const [open, setOpen] = useState(false);
 
-    const events = [
-        { id: 'epidemic', label: '🦠 Epidemia', color: '#cc4444' },
-        { id: 'economic_crisis', label: '📉 Crisis Económica', color: '#cc8844' },
-        { id: 'migration', label: '👥 Migración', color: '#44aa44' },
-        { id: 'storm', label: '⛈️ Tormenta', color: '#4444cc' },
-        { id: 'drought', label: '☀️ Sequía', color: '#ccaa44' },
-        { id: 'miracle', label: '✨ Milagro', color: '#44ccaa' },
-        { id: 'party', label: '🎉 Fiesta', color: '#cc44cc' },
-    ];
-
     if (!open) {
         return (
-            <button onClick={() => setOpen(true)}
+            <button
+                className="btn"
+                onClick={() => setOpen(true)}
                 style={{
-                    position: 'absolute', bottom: 10, left: 10, zIndex: 20,
-                    padding: '8px 16px', background: 'rgba(0,0,0,0.8)',
-                    color: '#ffa500', border: '1px solid #ffa50044',
-                    borderRadius: 6, cursor: 'pointer', fontFamily: 'monospace', fontSize: 12,
+                    position: 'absolute', bottom: 12, left: 12, zIndex: 20,
+                    padding: '8px 15px', fontSize: 12, fontWeight: 600,
+                    color: 'var(--amber)', borderColor: 'var(--amber-line)',
+                    background: 'var(--amber-soft)', backdropFilter: 'blur(6px)',
                 }}>
-                ⚙️ Admin
+                ⚙  Eventos
             </button>
         );
     }
 
     return (
-        <div style={{
-            position: 'absolute', bottom: 10, left: 10, zIndex: 20,
-            background: 'rgba(0,0,0,0.95)', border: '1px solid #555',
-            borderRadius: 8, padding: 16, minWidth: 220,
+        <div className="hud-panel" style={{
+            position: 'absolute', bottom: 12, left: 12, zIndex: 20,
+            padding: 14, width: 226, animation: 'panelIn 200ms cubic-bezier(0.23,1,0.32,1)',
         }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                <span style={{ color: '#ffa500', fontFamily: 'monospace', fontSize: 14 }}>⚙️ Admin</span>
-                <button onClick={() => setOpen(false)}
-                    style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <span className="section-label" style={{ margin: 0 }}>Provocar evento</span>
+                <button
+                    onClick={() => setOpen(false)}
+                    className="btn"
+                    style={{ width: 24, height: 24, padding: 0, fontSize: 13, color: 'var(--ink-3)', lineHeight: 1 }}
+                    aria-label="Cerrar">
                     ✕
                 </button>
             </div>
-            {events.map(ev => (
-                <button key={ev.id} onClick={() => { onTriggerEvent(ev.id); setOpen(false); }}
-                    style={{
-                        display: 'block', width: '100%', marginBottom: 6,
-                        padding: '6px 12px', background: ev.color + '22',
-                        color: ev.color, border: `1px solid ${ev.color}44`,
-                        borderRadius: 4, cursor: 'pointer', fontFamily: 'monospace', fontSize: 11,
-                        textAlign: 'left',
-                    }}>
-                    {ev.label}
-                </button>
-            ))}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {EVENTS.map(ev => (
+                    <button
+                        key={ev.id}
+                        onClick={() => { onTriggerEvent(ev.id); setOpen(false); }}
+                        className="btn row-click"
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: 9, width: '100%',
+                            padding: '8px 10px', fontSize: 12, textAlign: 'left', color: 'var(--ink-2)',
+                            borderLeft: `2px solid ${ev.tone}`,
+                        }}>
+                        <span style={{ fontSize: 14 }}>{ev.icon}</span>
+                        {ev.label}
+                    </button>
+                ))}
+            </div>
         </div>
     );
 }

@@ -5,7 +5,7 @@ from world import World
 from components import (
     Position, Needs, Personality, Emotions, Relationships, Relationship,
     ActionState, Inventory, Wallet, Profession, Shop, Bed,
-    Memory, MemoryEntry, Building, Workplace, Schedule, Health,
+    Memory, MemoryEntry, Building, Workplace, Residence, Schedule, Health,
     Disease, Innovation, GlobalEvent, Identity
 )
 
@@ -871,9 +871,14 @@ class MigrationSystem:
             count = random.randint(1, 3)
         names = [("Miguel", "male"), ("Sofia", "female"), ("Lucas", "male"),
                  ("Valentina", "female"), ("Mateo", "male"), ("Isabella", "female")]
+        # Casas disponibles para alojar a los recién llegados
+        houses = [b for b in world.entities_with_components(Building, Bed)
+                  if world.get_component(b, Building).building_type == "house"]
         for _ in range(count):
             name, sex = random.choice(names)
             e = world.create_entity()
+            if houses:
+                world.add_component(e, Residence(building_id=random.choice(houses)))
             world.add_component(e, Identity(name, random.randint(18, 50), sex, "migrant", 0.3))
             # Aparecer en la zona central poblada (cerca de tiendas/camas) para que
             # puedan integrarse: comer, dormir y socializar en vez de morir aislados.
