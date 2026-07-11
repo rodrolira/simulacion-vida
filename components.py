@@ -60,9 +60,12 @@ class MemoryEntry:
     event_type: str  # "social_interaction", "purchase", "salary", "achievement"
     subject_id: int  # quien vivió el evento (el dueño de la memoria)
     target_id: Optional[int]  # con quién o con qué entidad
-    description: str
+    description: str  # texto en español (respaldo); el cliente localiza desde event_type + meta
     emotional_impact: Dict[str, float] = field(default_factory=dict)  # ej: {"happiness": 5, "anger": 2}
     importance: float = 0.0  # qué tan fuerte es el recuerdo (0-100)
+    # Datos estructurados para localización en el cliente (ES/EN):
+    # p. ej. {"tone": "kind", "verb": 2, "topic": "weather"} o {"amount": 90}
+    meta: Dict = field(default_factory=dict)
 
 
 @dataclass
@@ -202,6 +205,9 @@ class Innovation:
 class GlobalEvent:
     tick: int
     event_type: str
-    description: str
+    description: str  # texto en español (respaldo); el cliente localiza desde event_type + meta
     severity: str = "info"  # "info", "warning", "critical"
     affected_entities: list = field(default_factory=list)
+    # Datos estructurados para localización en el cliente:
+    # p. ej. {"name": "Alice", "disease": "flu"} o {"count": 3} o {"innovation": "digital_commerce"}
+    meta: dict = field(default_factory=dict)

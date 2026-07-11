@@ -260,9 +260,10 @@ export class GameScene {
    * @param {string} timeStr - Hora actual (HH:MM)
    * @param {string} [weather] - Clima actual
    */
-  update (worldState, onSelectNPC, timeStr, weather, worldBounds) {
+  update (worldState, onSelectNPC, timeStr, weather, worldBounds, buildingLabel) {
     if (!worldState) return
 
+    if (buildingLabel) this._buildingLabel = buildingLabel
     this._autoCenterCamera(worldState)
     this._updateBuildings(worldState, onSelectNPC)
     this._updateNPCs(worldState, onSelectNPC)
@@ -313,13 +314,19 @@ export class GameScene {
     buildings.forEach(b => {
       let graphic = this.buildingGraphics.get(b.id)
       if (!graphic) {
-        graphic = this._createBuildingGraphic(b)
+        graphic = this._createBuildingGraphic(b, this._labelFor(b))
         graphic.eventMode = 'static'
         graphic.cursor = 'pointer'
         const buildingId = b.id
         graphic.on('click', () => onSelectNPC({ kind: 'building', id: buildingId }))
         this.buildingLayer.addChild(graphic)
         this.buildingGraphics.set(b.id, graphic)
+      }
+      graphic.__building = b
+      // Mantener la etiqueta en el idioma actual
+      const label = this._labelFor(b)
+      if (graphic.__labelText && graphic.__labelText.text !== label) {
+        graphic.__labelText.text = label
       }
       graphic.x = (b.Position?.x ?? 0) * TILE
       graphic.y = (b.Position?.y ?? 0) * TILE
@@ -521,7 +528,7 @@ export class GameScene {
    * Crea un gráfico para un edificio.
    * @private
    */
-  _createBuildingGraphic (building) {
+  _createBuildingGraphic (building, labelText) {
     const type = building?.Building?.building_type || 'house'
     const g = new PIXI.Graphics()
 
@@ -540,9 +547,8 @@ export class GameScene {
     }
     ;(drawers[type] || this._drawHouse).call(this, g)
 
-    // Etiqueta con el nombre bajo el edificio
-    const name = building?.Building?.name || type
-    const text = new PIXI.Text(name.substring(0, 14), {
+    // Etiqueta con el nombre (localizada) bajo el edificio
+    const text = new PIXI.Text((labelText || building?.Building?.name || type).substring(0, 16), {
       fontSize: 7,
       fill: 0xffffff,
       stroke: 0x000000,
@@ -553,8 +559,28 @@ export class GameScene {
     text.anchor.set(0.5, 0)
     text.y = 20
     g.addChild(text)
+    g.__labelText = text
+    g.__building = building
 
     return g
+  }
+
+  /** Etiqueta localizada de un edificio (usa el traductor inyectado por React). */
+  _labelFor (b) {
+    if (this._buildingLabel) {
+      try { return this._buildingLabel(b) } catch { /* ignore */ }
+    }
+    return b?.Building?.name || b?.Building?.building_type || ''
+  }
+
+  /** Re-etiqueta todos los edificios (al cambiar de idioma). */
+  relabelBuildings (labelFn) {
+    if (labelFn) this._buildingLabel = labelFn
+    this.buildingGraphics.forEach(g => {
+      if (g.__labelText && g.__building) {
+        g.__labelText.text = this._labelFor(g.__building)
+      }
+    })
   }
 
   /** Casa: paredes, tejado a dos aguas, puerta, ventanas y chimenea. @private */

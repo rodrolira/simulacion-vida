@@ -1,19 +1,11 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-
-const WEATHER = {
-    clear: { icon: '☀️', label: 'Despejado' },
-    cloudy: { icon: '☁️', label: 'Nublado' },
-    rain: { icon: '🌧️', label: 'Lluvia' },
-    storm: { icon: '⛈️', label: 'Tormenta' },
-    drought: { icon: '🌵', label: 'Sequía' },
-    fog: { icon: '🌫️', label: 'Niebla' },
-    snow: { icon: '❄️', label: 'Nieve' },
-};
+import { useI18n } from '../i18n';
 
 export default function HUD({ timeStr, day, npcCount, fps, speed, running, weather, onSpeedChange, onPause, onResume }) {
+    const { t, tWeather, lang, setLang } = useI18n();
     const speeds = [0.5, 1, 2, 5, 10];
-    const wx = WEATHER[weather] || WEATHER.clear;
+    const wx = tWeather(weather || 'clear');
 
     return (
         <div className="hud-panel" style={{
@@ -26,20 +18,17 @@ export default function HUD({ timeStr, day, npcCount, fps, speed, running, weath
                     {timeStr}
                 </span>
                 <span style={{ fontSize: 11, color: 'var(--ink-3)', letterSpacing: '0.06em' }}>
-                    DÍA <span className="tnum" style={{ color: 'var(--amber)', fontWeight: 600 }}>{day}</span>
+                    {t('ui.day')} <span className="tnum" style={{ color: 'var(--amber)', fontWeight: 600 }}>{day}</span>
                 </span>
             </div>
 
             {/* Meta: clima · población · fps */}
-            <div style={{
-                display: 'flex', alignItems: 'center', gap: 12, marginTop: 8,
-                fontSize: 11, color: 'var(--ink-3)',
-            }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8, fontSize: 11, color: 'var(--ink-3)' }}>
                 <span title={wx.label}>{wx.icon} {wx.label}</span>
             </div>
             <div style={{ display: 'flex', gap: 14, marginTop: 4, fontSize: 11, color: 'var(--ink-3)' }}>
                 <span>👥 <span className="tnum" style={{ color: 'var(--ink-2)' }}>{npcCount}</span></span>
-                <span>⚡ <span className="tnum" style={{ color: fps < 30 ? 'var(--bad)' : 'var(--ok)' }}>{fps}</span> fps</span>
+                <span>⚡ <span className="tnum" style={{ color: fps < 30 ? 'var(--bad)' : 'var(--ok)' }}>{fps}</span> {t('ui.fps')}</span>
             </div>
 
             {/* Controles */}
@@ -53,7 +42,7 @@ export default function HUD({ timeStr, day, npcCount, fps, speed, running, weath
                         borderColor: running ? 'rgba(224,112,92,0.3)' : 'rgba(134,192,122,0.3)',
                         background: running ? 'rgba(224,112,92,0.10)' : 'rgba(134,192,122,0.10)',
                     }}>
-                    {running ? '⏸  Pausa' : '▶  Reanudar'}
+                    {running ? t('ui.pause') : t('ui.resume')}
                 </button>
                 <div style={{ display: 'flex', gap: 4 }}>
                     {speeds.map(s => (
@@ -66,6 +55,19 @@ export default function HUD({ timeStr, day, npcCount, fps, speed, running, weath
                         </button>
                     ))}
                 </div>
+            </div>
+
+            {/* Selector de idioma */}
+            <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
+                {['es', 'en'].map(l => (
+                    <button
+                        key={l}
+                        onClick={() => setLang(l)}
+                        className={`btn btn-seg ${lang === l ? 'is-active' : ''}`}
+                        style={{ flex: 1, padding: '4px 0', fontSize: 10, fontWeight: 600, letterSpacing: '0.08em' }}>
+                        {l.toUpperCase()}
+                    </button>
+                ))}
             </div>
         </div>
     );

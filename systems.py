@@ -610,35 +610,44 @@ class RelationshipSystem:
         name_a = ident_a.name if ident_a else f"#{a}"
         name_b = ident_b.name if ident_b else f"#{b}"
 
-        # Guardar la conversación en la memoria de AMBOS (cada uno con el nombre del otro),
-        # con una descripción tipo conversación para que se vea en el panel del NPC.
+        # Elegir verbo y tema UNA vez (mismos para ambos participantes). Se guardan
+        # como índice/clave en 'meta' para que el cliente los localice a ES/EN.
+        tone_key = tone if tone in self._CONV_VERBS else "neutral"
+        verb_i = random.randrange(len(self._CONV_VERBS[tone_key]))
+        topic_key = random.choice(self._CONV_TOPIC_KEYS)
+
         for ent, other, other_name in [(a, b, name_b), (b, a, name_a)]:
             mem = world.get_component(ent, Memory)
             if mem:
                 impact = {"happiness": change * 0.5} if change > 0 else {"anger": -change * 0.3}
+                desc = (f"{self._CONV_VERBS[tone_key][verb_i]} con {other_name} "
+                        f"sobre {self._CONV_TOPICS_ES[topic_key]}")
                 mem.entries.append(MemoryEntry(
                     tick=world.tick, event_type="social_interaction",
                     subject_id=ent, target_id=other,
-                    description=self._conversation_desc(tone, other_name),
-                    emotional_impact=impact, importance=abs(change) * 2 + 5
+                    description=desc,
+                    emotional_impact=impact, importance=abs(change) * 2 + 5,
+                    meta={"tone": tone_key, "verb": verb_i, "topic": topic_key}
                 ))
 
         if ident_a and ident_b:
             print(f"  [SOCIAL] {ident_a.name}({tone}) ↔ {ident_b.name} → amistad {ra.friendship:.1f}/{rb.friendship:.1f}")
 
-    # Frases de conversación según el tono, para dar sensación humana.
+    # Frases de conversación según el tono (para el respaldo en español). El cliente
+    # tiene los MISMOS arrays en ES/EN y compone por índice, así que el orden importa.
     _CONV_VERBS = {
         "kind": ["Charló animadamente", "Rió", "Conversó a gusto", "Se sinceró", "Bromeó"],
         "neutral": ["Habló", "Conversó brevemente", "Comentó algo", "Saludó"],
         "rude": ["Discutió", "Tuvo un roce", "Debatió acaloradamente", "Se quejó"],
     }
-    _CONV_TOPICS = ["el clima", "el trabajo", "la familia", "los precios", "los vecinos",
-                    "sus planes", "la comida", "el pueblo", "los rumores", "los viejos tiempos"]
-
-    def _conversation_desc(self, tone: str, other_name: str) -> str:
-        verb = random.choice(self._CONV_VERBS.get(tone, self._CONV_VERBS["neutral"]))
-        topic = random.choice(self._CONV_TOPICS)
-        return f"{verb} con {other_name} sobre {topic}"
+    _CONV_TOPIC_KEYS = ["weather", "work", "family", "prices", "neighbors",
+                        "plans", "food", "town", "rumors", "old_times"]
+    _CONV_TOPICS_ES = {
+        "weather": "el clima", "work": "el trabajo", "family": "la familia",
+        "prices": "los precios", "neighbors": "los vecinos", "plans": "sus planes",
+        "food": "la comida", "town": "el pueblo", "rumors": "los rumores",
+        "old_times": "los viejos tiempos",
+    }
 
     def _pick_tone(self, pers, emot):
         if not pers: return "neutral"
@@ -683,8 +692,9 @@ class SalarySystem:
             if mem:
                 mem.entries.append(MemoryEntry(
                     tick=world.tick, event_type="salary", subject_id=npc,
-                    target_id=None, description=f"Recibió salario de {prof.salary}",
-                    emotional_impact={"happiness": 3}, importance=10
+                    target_id=None, description=f"Recibió su salario de ${prof.salary:.0f}",
+                    emotional_impact={"happiness": 3}, importance=10,
+                    meta={"amount": round(prof.salary)}
                 ))
 
 
@@ -759,7 +769,8 @@ class EpidemicSystem:
             world.remove_component(sick, Disease)
             ident = world.get_component(sick, Identity)
             if ident:
-                self._add_event(world, "recovery", f"{ident.name} se recuperó de {disease.name}")
+                self._add_event(world, "recovery", f"{ident.name} se recuperó de {disease.name}",
+                                meta={"name": ident.name, "disease": disease.name})
 
     def start_epidemic(self, world, disease_name="gripe", severity=0.3, contagiousness=0.6, duration=150, mortality=0.02):
         npcs = world.entities_with_components(Identity, Health)
@@ -773,7 +784,8 @@ class EpidemicSystem:
         world.add_component(patient_zero, disease)
         ident = world.get_component(patient_zero, Identity)
         self._add_event(world, "epidemic_start",
-                        f"¡Brote de {disease_name}! {ident.name} es el paciente cero", "critical")
+                        f"¡Brote de {disease_name}! {ident.name} es el paciente cero", "critical",
+                        meta={"name": ident.name, "disease": disease_name})
         return patient_zero
 
     def _infect(self, world, entity, source_disease, _source_entity=None):
@@ -790,16 +802,19 @@ class EpidemicSystem:
         health.sickness_severity = new_disease.severity * 100
         world.add_component(entity, new_disease)
         if ident:
-            self._add_event(world, "infection", f"{ident.name} contrajo {new_disease.name}", "warning")
+            self._add_event(world, "infection", f"{ident.name} contrajo {new_disease.name}", "warning",
+                            meta={"name": ident.name, "disease": new_disease.name})
 
     def _kill_npc(self, world, entity, disease):
         ident = world.get_component(entity, Identity)
         if ident:
-            self._add_event(world, "death", f"{ident.name} murió por {disease.name}", "critical")
+            self._add_event(world, "death", f"{ident.name} murió por {disease.name}", "critical",
+                            meta={"name": ident.name, "disease": disease.name})
         world.remove_entity(entity)
 
-    def _add_event(self, world, etype, desc, severity="info"):
-        self.global_events.append(GlobalEvent(tick=world.tick, event_type=etype, description=desc, severity=severity))
+    def _add_event(self, world, etype, desc, severity="info", meta=None):
+        self.global_events.append(GlobalEvent(tick=world.tick, event_type=etype, description=desc,
+                                              severity=severity, meta=meta or {}))
 
 
 # ============================================================
@@ -844,8 +859,9 @@ class EconomicEventSystem:
         if not self.crisis_active:
             self._start_crisis(world)
 
-    def _add_event(self, world, etype, desc, severity="info"):
-        self.global_events.append(GlobalEvent(tick=world.tick, event_type=etype, description=desc, severity=severity))
+    def _add_event(self, world, etype, desc, severity="info", meta=None):
+        self.global_events.append(GlobalEvent(tick=world.tick, event_type=etype, description=desc,
+                                              severity=severity, meta=meta or {}))
 
 
 # ============================================================
@@ -894,13 +910,15 @@ class MigrationSystem:
             world.add_component(e, Profession("unemployed", 15))
             world.add_component(e, Schedule(phase="free", wake_up=7, sleep=23))
             world.add_component(e, Health())
-        self._add_event(world, "migration", f"Llegaron {count} nuevo(s) migrante(s)", "info")
+        self._add_event(world, "migration", f"Llegaron {count} nuevo(s) migrante(s)", "info",
+                        meta={"count": count})
 
     def trigger_migration(self, world, count=2):
         self._spawn_migrants(world, count)
 
-    def _add_event(self, world, etype, desc, severity="info"):
-        self.global_events.append(GlobalEvent(tick=world.tick, event_type=etype, description=desc, severity=severity))
+    def _add_event(self, world, etype, desc, severity="info", meta=None):
+        self.global_events.append(GlobalEvent(tick=world.tick, event_type=etype, description=desc,
+                                              severity=severity, meta=meta or {}))
 
 
 # ============================================================
@@ -923,10 +941,10 @@ class InnovationSystem:
     def _discover(self, world, npc):
         ident = world.get_component(npc, Identity)
         innovations_pool = [
-            {"name": "Agricultura mejorada", "desc": "Técnicas de cultivo más eficientes", "effect": {"food_production": 1.3}},
-            {"name": "Medicina avanzada", "desc": "Mejores tratamientos médicos", "effect": {"recovery_rate": 1.5}},
-            {"name": "Comercio digital", "desc": "Sistema de comercio más eficiente", "effect": {"shop_prices": 0.8}},
-            {"name": "Educación pública", "desc": "Mejora la educación general", "effect": {"education_rate": 1.2}},
+            {"key": "improved_agriculture", "name": "Agricultura mejorada", "desc": "Técnicas de cultivo más eficientes", "effect": {"food_production": 1.3}},
+            {"key": "advanced_medicine", "name": "Medicina avanzada", "desc": "Mejores tratamientos médicos", "effect": {"recovery_rate": 1.5}},
+            {"key": "digital_commerce", "name": "Comercio digital", "desc": "Sistema de comercio más eficiente", "effect": {"shop_prices": 0.8}},
+            {"key": "public_education", "name": "Educación pública", "desc": "Mejora la educación general", "effect": {"education_rate": 1.2}},
         ]
         # Evitar redescubrir lo ya descubierto (antes salía "X descubrió Y" repetido).
         discovered = {i.name for i in self.innovations}
@@ -943,10 +961,12 @@ class InnovationSystem:
         if "education_rate" in data["effect"]:
             for e in world.entities_with_components(Identity):
                 world.get_component(e, Identity).education = min(1.0, world.get_component(e, Identity).education * data["effect"]["education_rate"])
-        self._add_event(world, "innovation", f"¡{ident.name} descubrió: {data['name']}!", "info")
+        self._add_event(world, "innovation", f"¡{ident.name} descubrió: {data['name']}!", "info",
+                        meta={"name": ident.name, "innovation": data["key"]})
 
-    def _add_event(self, world, etype, desc, severity="info"):
-        self.global_events.append(GlobalEvent(tick=world.tick, event_type=etype, description=desc, severity=severity))
+    def _add_event(self, world, etype, desc, severity="info", meta=None):
+        self.global_events.append(GlobalEvent(tick=world.tick, event_type=etype, description=desc,
+                                              severity=severity, meta=meta or {}))
 
 
 # ============================================================
@@ -971,21 +991,25 @@ class WeatherSystem:
             self.current_weather = new_weather
             self.weather_duration = random.randint(100, 500)
             if new_weather == "storm":
-                self._add_event(world, "weather", "¡Tormenta! La producción de comida se reduce", "warning")
+                self._add_event(world, "weather", "¡Tormenta! La producción de comida se reduce", "warning",
+                                meta={"kind": "storm"})
                 for shop_entity in world.entities_with_components(Shop):
                     world.get_component(shop_entity, Shop).stock = max(0, world.get_component(shop_entity, Shop).stock - 20)
             elif new_weather == "drought":
-                self._add_event(world, "weather", "¡Sequía! Los cultivos sufren", "warning")
+                self._add_event(world, "weather", "¡Sequía! Los cultivos sufren", "warning",
+                                meta={"kind": "drought"})
                 for shop_entity in world.entities_with_components(Shop):
                     world.get_component(shop_entity, Shop).price_per_unit *= 1.5
             elif new_weather == "rain":
-                self._add_event(world, "weather", "Lluvia suave, los cultivos crecen mejor", "info")
+                self._add_event(world, "weather", "Lluvia suave, los cultivos crecen mejor", "info",
+                                meta={"kind": "rain"})
 
     def get_weather(self):
         return self.current_weather
 
-    def _add_event(self, world, etype, desc, severity="info"):
-        self.global_events.append(GlobalEvent(tick=world.tick, event_type=etype, description=desc, severity=severity))
+    def _add_event(self, world, etype, desc, severity="info", meta=None):
+        self.global_events.append(GlobalEvent(tick=world.tick, event_type=etype, description=desc,
+                                              severity=severity, meta=meta or {}))
 
 
 # ============================================================

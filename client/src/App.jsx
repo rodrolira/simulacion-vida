@@ -8,8 +8,10 @@ import AdminPanel from './components/AdminPanel';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useWebSocket } from './hooks/useWebSocket';
 import { worldState } from './store/WorldState';
+import { useI18n } from './i18n';
 
 export default function App() {
+    const { tBuilding } = useI18n();
     const [selected, setSelected] = useState(null); // {kind:'npc'|'building', id} | null
     const [forceRender, setForceRender] = useState(0);
     const [timeStr, setTimeStr] = useState('06:00');
@@ -141,8 +143,8 @@ export default function App() {
     // Mapa id -> nombre, para mostrar CON QUIÉN interactúa cada NPC
     const nameById = {};
     npcs.forEach(n => { if (n.Identity?.name) nameById[n.id] = n.Identity.name; });
-    const buildingNameById = {};
-    buildings.forEach(b => { if (b.Building?.name) buildingNameById[b.id] = b.Building.name; });
+    const buildingById = {};
+    buildings.forEach(b => { buildingById[b.id] = b; });
 
     // Selección re-derivada del estado del mundo en cada frame → datos EN VIVO.
     const selectedNPC = selected?.kind === 'npc'
@@ -179,6 +181,7 @@ export default function App() {
                         weather={weather}
                         worldBounds={worldBounds}
                         onSceneReady={setScene}
+                        buildingLabel={tBuilding}
                     />
                 </ErrorBoundary>
 
@@ -225,9 +228,8 @@ export default function App() {
                 residents={residents}
                 workers={workers}
                 nameById={nameById}
-                buildingNameById={buildingNameById}
+                buildingById={buildingById}
                 onSelectNPC={(id) => setSelected({ kind: 'npc', id })}
-                onRequestInfo={handleRequestEntityInfo}
             />
         </div>
     );

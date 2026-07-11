@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
+import { useI18n } from '../i18n';
 
 /**
  * Minimapa en vivo del mundo.
@@ -9,6 +10,7 @@ import PropTypes from 'prop-types';
  * - Clic para centrar la cámara en ese punto (onNavigate).
  */
 export default function Minimap({ worldState, camera, terrainData, worldBounds, tick, onNavigate, width = 180, height = 120 }) {
+    const { t } = useI18n();
     const canvasRef = useRef(null);
     const terrainCacheRef = useRef(null);
 
@@ -122,7 +124,7 @@ export default function Minimap({ worldState, camera, terrainData, worldBounds, 
                 imageRendering: 'pixelated',
                 cursor: onNavigate ? 'pointer' : 'default',
             }}
-            title="Minimapa — clic para viajar a esa zona"
+            title={t('ui.minimapTitle')}
         />
     );
 }

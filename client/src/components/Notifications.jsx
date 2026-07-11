@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
+import { useI18n } from '../i18n';
 
 const SEVERITY = {
     info: { color: 'var(--info)', icon: 'ℹ️' },
@@ -8,6 +9,7 @@ const SEVERITY = {
 };
 
 export default function Notifications({ events = [], onDismiss, maxNotifications = 6 }) {
+    const { tEvent } = useI18n();
     const [notifications, setNotifications] = useState([]);
 
     useEffect(() => {
@@ -52,7 +54,7 @@ export default function Notifications({ events = [], onDismiss, maxNotifications
                             animation: 'slideIn 220ms cubic-bezier(0.23,1,0.32,1)',
                         }}>
                         <span style={{ fontSize: 13, marginTop: 1 }}>{cfg.icon}</span>
-                        <span>{n.description}</span>
+                        <span>{tEvent(n)}</span>
                     </div>
                 );
             })}

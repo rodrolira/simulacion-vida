@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
+import { useI18n } from '../i18n';
 
 const EVENTS = [
-    { id: 'epidemic', label: 'Epidemia', icon: '🦠', tone: 'var(--bad)' },
-    { id: 'economic_crisis', label: 'Crisis económica', icon: '📉', tone: 'var(--warn)' },
-    { id: 'migration', label: 'Migración', icon: '👥', tone: 'var(--ok)' },
-    { id: 'storm', label: 'Tormenta', icon: '⛈️', tone: 'var(--info)' },
-    { id: 'drought', label: 'Sequía', icon: '🌵', tone: 'var(--warn)' },
-    { id: 'miracle', label: 'Milagro', icon: '✨', tone: 'var(--amber)' },
-    { id: 'party', label: 'Fiesta', icon: '🎉', tone: 'var(--amber)' },
+    { id: 'epidemic', key: 'epidemic', icon: '🦠', tone: 'var(--bad)' },
+    { id: 'economic_crisis', key: 'economic_crisis', icon: '📉', tone: 'var(--warn)' },
+    { id: 'migration', key: 'migration', icon: '👥', tone: 'var(--ok)' },
+    { id: 'storm', key: 'storm', icon: '⛈️', tone: 'var(--info)' },
+    { id: 'drought', key: 'drought', icon: '🌵', tone: 'var(--warn)' },
+    { id: 'miracle', key: 'miracle', icon: '✨', tone: 'var(--amber)' },
+    { id: 'party', key: 'party', icon: '🎉', tone: 'var(--amber)' },
 ];
 
 export default function AdminPanel({ onTriggerEvent }) {
     const [open, setOpen] = useState(false);
+    const { t } = useI18n();
 
     if (!open) {
         return (
@@ -25,7 +27,7 @@ export default function AdminPanel({ onTriggerEvent }) {
                     color: 'var(--amber)', borderColor: 'var(--amber-line)',
                     background: 'var(--amber-soft)', backdropFilter: 'blur(6px)',
                 }}>
-                ⚙  Eventos
+                {t('ui.events')}
             </button>
         );
     }
@@ -36,12 +38,12 @@ export default function AdminPanel({ onTriggerEvent }) {
             padding: 14, width: 226, animation: 'panelIn 200ms cubic-bezier(0.23,1,0.32,1)',
         }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <span className="section-label" style={{ margin: 0 }}>Provocar evento</span>
+                <span className="section-label" style={{ margin: 0 }}>{t('ui.triggerEvent')}</span>
                 <button
                     onClick={() => setOpen(false)}
                     className="btn"
                     style={{ width: 24, height: 24, padding: 0, fontSize: 13, color: 'var(--ink-3)', lineHeight: 1 }}
-                    aria-label="Cerrar">
+                    aria-label={t('ui.close')}>
                     ✕
                 </button>
             </div>
@@ -57,7 +59,7 @@ export default function AdminPanel({ onTriggerEvent }) {
                             borderLeft: `2px solid ${ev.tone}`,
                         }}>
                         <span style={{ fontSize: 14 }}>{ev.icon}</span>
-                        {ev.label}
+                        {t(`eventName.${ev.key}`)}
                     </button>
                 ))}
             </div>

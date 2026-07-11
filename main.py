@@ -340,7 +340,8 @@ def get_changed_entities():
         "tick": e.tick,
         "type": e.event_type,
         "description": e.description,
-        "severity": e.severity
+        "severity": e.severity,
+        "meta": e.meta,
     } for e in recent_events]
 
     return {
@@ -708,7 +709,8 @@ async def get_events(limit: int = 50, event_type: str = None, severity: str = No
         "tick": e.tick,
         "type": e.event_type,
         "description": e.description,
-        "severity": e.severity
+        "severity": e.severity,
+        "meta": e.meta,
     } for e in events]
 
 
